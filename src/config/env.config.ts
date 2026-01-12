@@ -12,14 +12,15 @@ const envVarsSchema = Joi.object()
   .keys({
     PORT: Joi.number().required().description("Backend Port"),
     NODE_ENV: Joi.string().required().description("Node Environment"),
-    DB_HOST: Joi.string().required().description("Database host name"),
-    DB_PORT: Joi.number().default(5432).description("Database port"),
-    DB_NAME: Joi.string().required().description("Database name"),
-    DB_USERNAME: Joi.string().required().description("Database user name"),
-    DB_SCHEMA: Joi.string().required().description("Database user schema"),
-    DB_PASSWORD: Joi.string().required().description("Database password"),
+    DB_HOST: Joi.string().description("Database host name"),
+    DB_PORT: Joi.number().description("Database port"),
+    DB_NAME: Joi.string().description("Database name"),
+    DB_USERNAME: Joi.string().description("Database user name"),
+    DB_SCHEMA: Joi.string().description("Database user schema"),
+    DB_PASSWORD: Joi.string().description("Database password"),
     JWT_SECRET_KEY: Joi.string().required().description("JWT secret key"),
     SWAGGER_URL: Joi.string().required().description("Swagger API URL"),
+    DATABASE_URL: Joi.string().required().description("Database url"),
     // JWT_ACCESS_EXPIRATION_MINUTES: Joi.number()
     //   .default(30)
     //   .description("minutes after which access tokens expire"),
@@ -48,6 +49,7 @@ const config = {
   db_username: envVars.DB_USERNAME,
   db_schema: envVars.DB_SCHEMA,
   db_password: envVars.DB_PASSWORD,
+  db_url: envVars.DATABASE_URL,
   jwt: {
     secret: envVars.JWT_SECRET_KEY,
     // accessExpirationMinutes: envVars.JWT_ACCESS_EXPIRATION_MINUTES,
