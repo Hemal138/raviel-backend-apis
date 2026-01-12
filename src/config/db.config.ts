@@ -37,11 +37,12 @@ const dbConfig: Record<"development" | "test" | "production", DBConfig> = {
     logging: false,
   },
   production: {
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    schema: process.env.DB_SCHEMA,
+    use_env_variable: "DATABASE_URL",
+    // username: process.env.DB_USERNAME,
+    // password: process.env.DB_PASSWORD,
+    // database: process.env.DB_NAME,
+    // host: process.env.DB_HOST,
+    // schema: process.env.DB_SCHEMA,
     dialect: "postgres",
     logging: false,
     dialectOptions: {
