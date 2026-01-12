@@ -1,24 +1,8 @@
-import { ObjectId } from "mongoose";
-
-export interface Role {
-  _id: ObjectId;
-  name: string;
-  isActive: boolean;
-  description: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface User {
-  _id: ObjectId;
-  userName: string;
+  _id: string;
   email: string;
   mobile: string;
   password: string;
-  roleId: {
-    _id: ObjectId;
-    name: string;
-  };
   role: string;
   isActive: boolean;
 }

@@ -1,7 +1,5 @@
-import { ObjectId } from "mongoose";
-
 export interface OtpModel {
-  _id: ObjectId;
+  _id: string;
   otp: string;
   email: string;
   createdAt: Date;
@@ -15,11 +13,11 @@ export interface RoleModel {
 }
 
 export interface UserModel {
-  _id: ObjectId;
+  _id: string;
   userName: string;
   email: string;
   mobile: string;
   password: string;
-  roleId: ObjectId;
+  roleId: string;
   isActive: boolean;
 }
