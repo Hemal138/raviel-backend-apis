@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from "express";
 import config from "./config/env.config";
 import router from "./routes/index";
-import db from "../src/models/index";
+import db from "./models/index";
 import { ApiResponse } from "./common/utils";
 import errorHandler from "./middlewares/errorHandler.middleware";
 import { SwaggerOptions, serve, setup } from "swagger-ui-express";

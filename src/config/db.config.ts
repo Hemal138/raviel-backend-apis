@@ -34,6 +34,7 @@ const dbConfig: Record<"development" | "test" | "production", DBConfig> = {
     host: process.env.DB_HOST,
     schema: process.env.DB_SCHEMA,
     dialect: "postgres",
+    logging: false,
   },
   production: {
     username: process.env.DB_USERNAME,
@@ -42,6 +43,7 @@ const dbConfig: Record<"development" | "test" | "production", DBConfig> = {
     host: process.env.DB_HOST,
     schema: process.env.DB_SCHEMA,
     dialect: "postgres",
+    logging: false,
     dialectOptions: {
       ssl: {
         require: true,
