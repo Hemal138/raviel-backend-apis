@@ -77,10 +77,7 @@ const auth = ({ isTokenRequired = true, usersAllowed = [] }: AuthOptions) => {
     let user: User = await db.User.findOne({
       where: { id: decoded.id },
       raw: true,
-      //   nest: true,
-      //   include: [{ model: db.Role, as: "role" }],
     });
-    console.log("🚀 ~ auth ~ user:", user);
 
     //* check if user is present in the database or not
     if (!user)

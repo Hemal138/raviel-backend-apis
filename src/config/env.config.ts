@@ -21,6 +21,7 @@ const envVarsSchema = Joi.object()
     JWT_SECRET_KEY: Joi.string().required().description("JWT secret key"),
     SWAGGER_URL: Joi.string().required().description("Swagger API URL"),
     DATABASE_URL: Joi.string().required().description("Database url"),
+    CRYPTO_SECRET_KEY: Joi.string().required().description("Crypto secret key"),
     // JWT_ACCESS_EXPIRATION_MINUTES: Joi.number()
     //   .default(30)
     //   .description("minutes after which access tokens expire"),
@@ -57,6 +58,7 @@ const config = {
     // resetPasswordExpirationMinutes: 10,
   },
   swagger_url: envVars.SWAGGER_URL,
+  crypto_secret_key: envVars.CRYPTO_SECRET_KEY,
 };
 
 export default config;

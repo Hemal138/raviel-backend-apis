@@ -17,6 +17,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
+  "/public",
+  express.static(path.join(process.cwd(), "public"))
+);
+
+app.use(
   cors({
     origin: ["http://localhost:5173", "https://raviel.netlify.app", "https://raviel-partner-panel.netlify.app"],
   })

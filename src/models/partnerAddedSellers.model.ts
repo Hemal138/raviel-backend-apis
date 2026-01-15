@@ -1,25 +1,30 @@
 import { Sequelize, DataTypes, Model } from "sequelize";
 import { enums } from "../common/constants";
+import { alternatives } from "joi";
 type UUID = string & { readonly __brand: unique symbol };
 
 const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
   class PartnerAddedSellers extends Model {
     public id!: UUID;
     public partnerId!: UUID;
-    public sellerId!: string;
-    public sellerName!: string;
+    public sellerId!: string; // vendor id
+    public sellerName!: string; // account holder name
+    public brandName!: string; // account name
     public launchingDate!: string;
+    public listingDate!: string;
     public sellerEmailId!: string;
+    public phoneNumber!: string;
+    public password!: string;
+    public brandApproval!: string;
     public gstNumber!: string;
-    public gstAddress!: string;
-    public pancardNumber!: string;
-    public signatureImageURL!: string;
-    public bankAccountNumber!: string;
-    public bankIFSCCode!: string;
-    public bankAccountHolderFullName!: string;
-    public bankAccountType!: string;
+    public trademarkClass!: string;
+    public totalSKUs!: number; 
+    public pendingSKUs!: number;
+    public liveSKUs!: number;
+    public productCategories!: string[];
     public createdAt!: Date;
     public updatedAt!: Date | null;
+
 
     static associate(models: any) {
       //* define association here
@@ -58,9 +63,20 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
         field: "seller_name",
         allowNull: false,
       },
+      brandName: {
+        type: DataTypes.STRING,
+        unique: true,
+        field: "brand_name",
+        allowNull: false,
+      },
       launchingDate: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY,
         field: "launching_date",
+        allowNull: false,
+      },
+      listingDate: {
+        type: DataTypes.DATEONLY,
+        field: "listing_date",
         allowNull: false,
       },
       sellerEmailId: {
@@ -69,48 +85,53 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
         allowNull: false,
         unique: true
       },
+      phoneNumber: {
+        type: DataTypes.STRING,
+        field: "phone_number",
+        allowNull: false,
+        unique: true,
+      },
+      password: {
+        type: DataTypes.STRING,
+        field: "password",
+        allowNull: false,
+      },
+      brandApproval: {
+        type: DataTypes.ENUM("pending", "approved"),
+        field: "brand_approval",
+        allowNull: false,
+      },
       gstNumber: {
         type: DataTypes.STRING,
         unique: true,
         field: "gst_number",
         allowNull: false
       },
-      gstAddress: {
-        type: DataTypes.STRING,
-        unique: true,
-        field: "gst_address",
+      trademarkClass: {
+        type: DataTypes.ENUM("pending", "approved"),
+        field: "trademark_class",
         allowNull: false
       },
-      pancardNumber: {
-        type: DataTypes.STRING,
-        field: "pancard_number",
-        unique: true,
-        allowNull: false
+      totalSKUs: {
+        type: DataTypes.INTEGER,
+        field: "total_skus",
+        defaultValue: 0
       },
-      signatureImageURL: {
-        type: DataTypes.STRING,
-        field: "signature_image_url",
-        allowNull: false
+      pendingSKUs: {
+        type: DataTypes.INTEGER,
+        field: "pending_skus",
+        defaultValue: 0
       },
-      bankAccountNumber: {
-        type: DataTypes.STRING,
-        field: "bank_account_number",
-        allowNull: false
+      liveSKUs: {
+        type: DataTypes.INTEGER,
+        field: "live_skus",
+        defaultValue: 0
       },
-      bankIFSCCode: {
-        type: DataTypes.STRING,
-        field: "bankIFSCCode",
-        allowNull: false
-      },
-      bankAccountHolderFullName: {
-        type: DataTypes.STRING,
-        field: "bank_account_holder_full_name",
-        allowNull: false
-      },
-      bankAccountType: {
-        type: DataTypes.ENUM("savings", "current"),
-        field: "bank_account_type",
-        allowNull: false
+      productCategories: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        defaultValue: [],
+        allowNull: false,    
+        field: "product_categories",
       },
       createdAt: {
         type: DataTypes.DATE,

@@ -1,7 +1,15 @@
+import CryptoJS from "crypto-js";
 import bcrypt from "bcryptjs";
 import JWT from "jsonwebtoken";
 import { JwtToken } from "../../types/helper.interface";
 import config from "../../config/env.config";
+// const ALGORITHM = "aes-256-cbc";
+// const SECRET = process.env.CRYPTO_SECRET!;
+const SECRET = config.crypto_secret_key;
+
+// create 32-byte key
+// const KEY = crypto.createHash("sha256").update(SECRET).digest();
+// const IV = Buffer.alloc(16, 0); // static IV to match crypto-js
 // import axios from "axios";
 // import sendGridMail from "@sendgrid/mail";
 // import formData from "form-data";
@@ -24,7 +32,7 @@ const helper = {
   //? Make generate JWT token function
   generateToken: async ({ data }: { data: JwtToken }) => {
     //* Make generate token function
-    const token = await JWT.sign(data, config.jwt.secret, { expiresIn: "7d" });
+    const token = await JWT.sign(data, config.jwt.secret /*, { expiresIn: "7d" } */);
     return token;
   },
 
@@ -47,6 +55,30 @@ const helper = {
     const isMatch = await bcrypt.compare(password, hashedPassword);
     return isMatch;
   },
+
+  // encrypt: (text: string) => {
+  //   const cipher = crypto.createCipheriv(ALGORITHM, KEY, IV);
+  //   let encrypted = cipher.update(text, "utf8", "base64");
+  //   encrypted += cipher.final("base64");
+  //   return encrypted;
+  // },
+
+  // decrypt: (encryptedText: string): string => {
+  //   const decipher = crypto.createDecipheriv(ALGORITHM, KEY, IV);
+  //   let decrypted = decipher.update(encryptedText, "base64", "utf8");
+  //   decrypted += decipher.final("utf8");
+  //   return decrypted;
+  // }
+
+  encrypt: (plainText: string) => {
+  return CryptoJS.AES.encrypt(plainText, SECRET).toString();
+},
+
+  decrypt: (cipherText: string) =>  {
+  const bytes = CryptoJS.AES.decrypt(cipherText, SECRET);
+  return bytes.toString(CryptoJS.enc.Utf8);
+}
+
 
   //   //* Send email using sendGrid
   //   sendMail: async ({ to, otp }: { to: string; otp: number }) => {

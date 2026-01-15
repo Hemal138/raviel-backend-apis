@@ -17,6 +17,7 @@ const message = {
   USER_NOT_FOUND: "User not found",
   USER_ALREADY_EXIST: "User is already exist",
   SELLER_ALREADY_EXIST: "Seller is already exist",
+  SELLER_NOT_FOUND: "Seller not found",
   ROLE_ALREADY_EXIST: "Role is already exist",
   INVALID_PASSWORD: "Invalid password",
   INVALID_CREDENTIALS: "Invalid credentials",

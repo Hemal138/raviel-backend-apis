@@ -7,31 +7,74 @@ const partnerRepository = {
     return await db.PartnerAddedSellers.create(data);
   },
 
-  findSellerAddedByPartner: async (sellerId: string) => {
+  findSellerAddedByPartner: async (sellerId: string, partnerId: string) => {
     return await db.PartnerAddedSellers.findOne({
       where: {
-        sellerId: {
-          [Op.eq]: sellerId
-        }
+        [Op.and]: [
+          {
+            sellerId: {
+              [Op.eq]: sellerId
+            },
+          },
+          {
+            partnerId: {
+              [Op.eq]: partnerId
+            },        
+          }
+        ]
       },
       raw: true
     });
   },
 
-  updateUserBusinessDetails: async (data: any, userId: string) => {
-    const [updatedCount, [updatedUserBusinessDetails]] = await db.UserBusinessDetails.update(data, {
+  updateSellerAddedByPartner: async (data: any, sellerId: string) => {
+    const [updatedCount, [updatedSeller]] = await db.PartnerAddedSellers.update(data, {
       where: {
-        userId: userId,
+        sellerId,
       },
       raw: true,
       returning: true,
     });
 
     if (updatedCount) {
-      return updatedUserBusinessDetails;
+      return updatedSeller;
     } else {
       return null;
     }
+  },
+
+  deleteSellerAddedByPartner: async (sellerId: string) => {
+    const deletedCount = await db.PartnerAddedSellers.destroy({
+      where: {
+        sellerId,
+      },
+    });
+
+    if (deletedCount) {
+      return true;
+    } else {
+      return false;
+    }
+  },
+
+  fetchAllSellersAddedByPartner: async (partnerId: string) => {
+    const fetchedSellers = await db.PartnerAddedSellers.findAll({
+      where: {
+        partnerId,
+      },
+      raw: true
+    });
+    return fetchedSellers;
+  },
+
+  addSellersByPartnerUsingFile: async (partnerId: string) => {
+    const fetchedSellers = await db.PartnerAddedSellers.findAll({
+      where: {
+        partnerId,
+      },
+      raw: true
+    });
+    return fetchedSellers;
   },
 };
 
