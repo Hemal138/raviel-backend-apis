@@ -9,7 +9,7 @@ const UserModel = (sequelize: Sequelize, DataTypes: any) => {
     public email!: string;
     public password!: string;
     public role!: string;
-    public mobile!: string;
+    public phoneNumber!: string;
     public lastLoginDate!: Date | null;
     public createdAt!: Date;
     public updatedAt!: Date | null;
@@ -22,10 +22,14 @@ const UserModel = (sequelize: Sequelize, DataTypes: any) => {
 
     static associate(models: any) {
       //* define association here
-      //   User.belongsTo(models.Role, {
-      //     foreignKey: "role_id",
-      //     as: "role",
-      //   });
+        User.hasOne(models.UserBusinessDetails, {
+          foreignKey: "userId",
+          as: "userBusinessDetails",
+        });
+        // User.belongsTo(models.Role, {
+        //   foreignKey: "role_id",
+        //   as: "role",
+        // });
     }
   }
 
@@ -59,9 +63,10 @@ const UserModel = (sequelize: Sequelize, DataTypes: any) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      mobile: {
+      phoneNumber: {
         type: DataTypes.STRING,
         allowNull: true,
+        field: "phone_number"
       },
       lastLoginDate: {
         type: DataTypes.DATE,

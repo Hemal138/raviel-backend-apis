@@ -59,13 +59,11 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
       },
       sellerName: {
         type: DataTypes.STRING,
-        unique: true,
         field: "seller_name",
         allowNull: false,
       },
       brandName: {
         type: DataTypes.STRING,
-        unique: true,
         field: "brand_name",
         allowNull: false,
       },
@@ -83,13 +81,11 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
         type: DataTypes.STRING,
         field: "seller_email_id",
         allowNull: false,
-        unique: true
       },
       phoneNumber: {
         type: DataTypes.STRING,
         field: "phone_number",
         allowNull: false,
-        unique: true,
       },
       password: {
         type: DataTypes.STRING,
@@ -103,7 +99,6 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
       },
       gstNumber: {
         type: DataTypes.STRING,
-        unique: true,
         field: "gst_number",
         allowNull: false
       },

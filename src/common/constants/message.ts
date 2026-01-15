@@ -38,8 +38,8 @@ const message = {
   EMAIL_NOT_FOUND: "Email not found",
   EMAIL_ALREADY_EXISTS: "Email already exists",
 
-  //* Mobile Messages
-  MOBILE_ALREADY_EXISTS: "Mobile already exists",
+  //* Phone number Messages
+  PHONE_NUMBER_ALREADY_EXISTS: "Phone number already exists",
 };
 
 export default message;

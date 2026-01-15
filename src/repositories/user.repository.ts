@@ -13,7 +13,14 @@ const userRepository = {
         ...(req.body?.email && { email: req.body.email }),
         ...(req.body?.phoneNumber && { phoneNumber: req.body.phoneNumber }),
       },
+      include: [
+        {
+          model: db.UserBusinessDetails,
+          as: "userBusinessDetails"
+        }
+      ],
       raw: true,
+      nest: true
     });
   },
 

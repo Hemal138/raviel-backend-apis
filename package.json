@@ -1,6 +1,7 @@
 {
   "name": "new-raviel",
   "version": "1.0.0",
+  "author": "Bhavin Bhuva",
   "main": "dist/index.js",
   "type": "commonjs",
   "scripts": {
@@ -9,7 +10,6 @@
     "start": "node dist/index.js"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {

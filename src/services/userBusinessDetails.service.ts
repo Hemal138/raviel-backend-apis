@@ -10,7 +10,6 @@ const userBusinessDetailsService = {
 
     
     if (!user) return message.USER_NOT_FOUND;
-    console.log("user242342: ", user);
 
     if (user.isOnboardingCompleted) return "User already completed onboarding!";
 

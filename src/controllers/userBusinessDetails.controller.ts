@@ -13,7 +13,12 @@ const userBusinessDetailsController = {
         businessName: Joi.string().required(),
         gstNumber: Joi.string().when("role", {
           is: "seller",
-          then: Joi.required(),
+          then: Joi.string()
+            .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
+            .required()
+            .messages({
+              "string.pattern.base": "Invalid GST number format",
+            }),
           otherwise: Joi.optional(),
         }),
         gstAddress: Joi.string().when("role", {
@@ -43,7 +48,12 @@ const userBusinessDetailsController = {
         }),
         pancardNumber: Joi.string().when("role", {
           is: "seller",
-          then: Joi.required(),
+          then: Joi.string()
+            .pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
+            .required()
+            .messages({
+              "string.pattern.base": "Invalid PAN card number format",
+            }),
           otherwise: Joi.optional(),
         }),
       }),
@@ -60,6 +70,12 @@ const userBusinessDetailsController = {
         return ApiResponse.BAD_REQUEST({
           res,
           message: message.FAILED,
+        });
+
+      if (createdUserBusinessDetails === "User already completed onboarding!")
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: createdUserBusinessDetails,
         });
       if (createdUserBusinessDetails === message.USER_NOT_FOUND)
         return ApiResponse.NOT_FOUND({
@@ -78,13 +94,19 @@ const userBusinessDetailsController = {
     validation: validator({
       body: Joi.object({
         businessName: Joi.string().optional(),
-        gstNumber: Joi.string().optional(),
+        gstNumber: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
+          .messages({
+            "string.pattern.base": "Invalid GST number format",
+          }).optional(),
         gstAddress: Joi.string().optional(),
         manufacturerNumber: Joi.string().optional(),
         fullFillerNumber: Joi.string().optional(),
         pickupAddress: Joi.string().optional(),
         businessType: Joi.string().optional(),
-        pancardNumber: Joi.string().optional(),
+        pancardNumber: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
+          .messages({
+            "string.pattern.base": "Invalid PAN card number format",
+          }).optional()
       }),
     }),
     handler: async (req: any, res: Response) => {
@@ -106,7 +128,6 @@ const userBusinessDetailsController = {
       });
     },
   },
-
 };
 
 export default userBusinessDetailsController;

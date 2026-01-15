@@ -56,7 +56,7 @@ const userService = {
     const dataToUpdate = {
       firstName: req.body.firstName,
       lastName: req.body.lastName,
-      mobile: req.body.mobile,
+      phoneNumber: req.body.phoneNumber,
     };
 
     const updatedData = await userRepository.updateUser(dataToUpdate, user?.id);

@@ -12,11 +12,23 @@ const userController = {
         firstName: Joi.string().required(),
         lastName: Joi.string().required(),
         email: Joi.string().email().required(),
-        password: Joi.string().min(6).required(),
+        password: Joi.string()
+          .min(6)
+          .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/)
+          .required()
+          .messages({
+            "string.pattern.base":
+              "Password must contain at least one uppercase letter, one lowercase letter, and one special character",
+          }),
         role: Joi.string()
           .valid(...Object.values(enums.ROLE))
           .required(),
-        mobile: Joi.string().required(),
+        phoneNumber: Joi.string()
+          .pattern(/^\d{10}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Phone number must be exactly 10 digits",
+          }),
       }),
     }),
     handler: async (req: Request, res: Response) => {
@@ -77,7 +89,12 @@ const userController = {
       body: Joi.object({
         firstName: Joi.string(),
         lastName: Joi.string(),
-        mobile: Joi.string(),
+        phoneNumber: Joi.string()
+          .pattern(/^\d{10}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Phone number number must be exactly 10 digits",
+          }),
       }),
     }),
     handler: async (req: any, res: Response) => {
@@ -99,7 +116,7 @@ const userController = {
       });
     },
   },
-  
+
   getLoggedInUserDetails: {
     validation: validator({}),
     handler: async (req: any, res: Response) => {

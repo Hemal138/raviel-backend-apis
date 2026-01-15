@@ -16,7 +16,7 @@ export interface UserModel {
   _id: string;
   userName: string;
   email: string;
-  mobile: string;
+  phoneNumber: string;
   password: string;
   roleId: string;
   isActive: boolean;

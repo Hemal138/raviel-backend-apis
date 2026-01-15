@@ -30,14 +30,14 @@ const router = express.Router();
  *                  email: john.doe@example.com
  *                  role: partner
  *                  password: User@123
- *                  mobile: "9999966666"
+ *                  phoneNumber: "9999966666"
  *            example:
  *              firstName: John
  *              lastName: Doe
  *              email: john.doe@example.com
  *              role: partner
  *              password: User@123
- *              mobile: "9999966666"
+ *              phoneNumber: "9999966666"
  *        required: true
  *      responses:
  *        201:
@@ -57,7 +57,7 @@ const router = express.Router();
  *                      firstName: John
  *                      lastName: Doe
  *                      email: john.doe@example.com
- *                      mobile: "9999966666"
+ *                      phoneNumber: "9999966666"
  *                      isActive: true
  *                      lastLoginDate: null
  *                      createdAt: 2026-01-02T15:14:43.408Z
@@ -72,7 +72,7 @@ const router = express.Router();
  *        - email
  *        - role
  *        - password
- *        - mobile
+ *        - phoneNumber
  *      type: object
  *      properties:
  *        firstName:
@@ -85,7 +85,7 @@ const router = express.Router();
  *          type: string
  *        password:
  *          type: string
- *        mobile:
+ *        phoneNumber:
  *          type: string
  *      example:
  *        firstName: John
@@ -93,7 +93,7 @@ const router = express.Router();
  *        email: john.doe@example.com
  *        role: partner
  *        password: User@123
- *        mobile: "9999966666"
+ *        phoneNumber: "9999966666"
  *    User-Registration-Response:
  *      title: User-Registration-Response
  *      required:
@@ -123,7 +123,7 @@ const router = express.Router();
  *          firstName: John
  *          lastName: Doe
  *          email: john.doe@example.com
- *          mobile: "9999966666"
+ *          phoneNumber: "9999966666"
  *          isActive: true
  *          lastLoginDate: null
  *          createdAt: 2026-01-02T15:14:43.408Z
@@ -135,7 +135,7 @@ const router = express.Router();
  *      - firstName
  *      - lastName
  *      - email
- *      - mobile
+ *      - phoneNumber
  *      - isActive
  *      - lastLoginDate
  *      - createdAt
@@ -150,7 +150,7 @@ const router = express.Router();
  *          type: string
  *        email:
  *          type: string
- *        mobile:
+ *        phoneNumber:
  *          type: string
  *        isActive:
  *          type: boolean
@@ -167,7 +167,7 @@ const router = express.Router();
  *        firstName: John
  *        lastName: Doe
  *        email: john.doe@example.com
- *        mobile: "9999966666"
+ *        phoneNumber: "9999966666"
  *        isActive: true
  *        lastLoginDate: null
  *        createdAt: 2026-01-02T15:14:43.408Z
@@ -270,7 +270,7 @@ router.post(
  *                lastName:
  *                  type: string
  *                  example: Doe1
- *                mobile:
+ *                phoneNumber:
  *                  type: string
  *                  example: 9977665544
  *        required: true
@@ -308,7 +308,7 @@ router.post(
  *                      email:
  *                        type: string
  *                        example: "john.doe@example.com"
- *                      mobile:
+ *                      phoneNumber:
  *                        type: string
  *                        example: "9977665544"
  *                      isActive:
@@ -386,7 +386,7 @@ router.put(
  *                      email:
  *                        type: string
  *                        example: "john.doe@example.com"
- *                      mobile:
+ *                      phoneNumber:
  *                        type: string
  *                        example: "9977665544"
  *                      isActive:
@@ -403,6 +403,45 @@ router.put(
  *                        type: string
  *                        nullable: true
  *                        example: 2026-01-02T15:14:43.409Z
+ *                      userBusinessDetails:
+ *                        type: object
+ *                        properties:
+ *                            id:
+ *                              type: string
+ *                              example: 96ad270b-87f5-49b3-abed-a190ec46559d                        
+ *                            userId:
+ *                              type: string
+ *                              example: a9201deb-ca29-476f-99f8-2e740f4639ca                        
+ *                            businessName:
+ *                              type: string
+ *                              example: Doe Manufacturing India Pvt Ltd                       
+ *                            gstNumber:
+ *                              type: string
+ *                              example: 27ABCDE1234F1Z5                         
+ *                            gstAddress:
+ *                              type: string
+ *                              example: Plot No. 45, MIDC Industrial Area, Andheri East, Mumbai, Maharashtra - 400093                         
+ *                            manufacturerNumber:
+ *                              type: string
+ *                              example: MFG-IND-458921                         
+ *                            fullFillerNumber:
+ *                              type: string
+ *                              example: FUL-IND-774512                        
+ *                            pickupAddress:
+ *                              type: string
+ *                              example: Warehouse No. 12, Bhiwandi Logistics Park, Thane, Maharashtra - 421302                         
+ *                            businessType:
+ *                              type: string
+ *                              example: Manufacturer                         
+ *                            pancardNumber:
+ *                              type: string
+ *                              example: ABCDE1234F                         
+ *                            createdAt:
+ *                              type: string
+ *                              example: 2026-01-15T17:10:47.201Z                         
+ *                            updatedAt:
+ *                              type: string
+ *                              example: 2026-01-15T17:10:47.201Z                        
  */
 //* Fetch logged in User API
 router.get(

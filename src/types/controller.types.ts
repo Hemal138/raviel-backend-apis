@@ -1,7 +1,7 @@
 export interface User {
   _id: string;
   email: string;
-  mobile: string;
+  phoneNumber: string;
   password: string;
   role: string;
   isActive: boolean;

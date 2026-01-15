@@ -15,8 +15,7 @@ export interface User {
   id: string;
   email: string;
   role: string;
-  mobile: string;
-  phoneCountry: string;
+  phoneNumber: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

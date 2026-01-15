@@ -86,7 +86,7 @@ const partnerService = {
 
     let workBook: xlsx.WorkBook;
     // console.log("🚀 ~ workBook: ", workBook)
-    
+
     if (req.file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
       workBook = xlsx.readFile(filePath);
     } else if (req.file.mimetype === "text/csv") {
@@ -95,7 +95,7 @@ const partnerService = {
     } else {
       return "Unsupported file format. Please upload an XLSX or CSV file.";
     }
-    
+
     console.log("🚀 ~ workBook after: ", workBook)
 
     const sheetName = workBook.SheetNames[0];
@@ -106,17 +106,17 @@ const partnerService = {
 
     const data: any[] = xlsx.utils.sheet_to_json(sheet);
     console.log("🚀 ~ data: ", data)
-    
+
     if (!data.length) {
       return "No data found in the uploaded file!";
     }
     console.log("🚀 ~ data after: ", data)
 
-    
+
     const ifEmptySpaceAvailableInData = data.find((item: any) => Object.keys(item).some((key: string) => key.includes("__EMPTY_")));
     console.log("🚀 ~ ifEmptySpaceAvailableInData:", ifEmptySpaceAvailableInData)
-    
-    
+
+
     if (!ifEmptySpaceAvailableInData) {
       eventsData = data;
     } else {
@@ -139,125 +139,131 @@ const partnerService = {
         };
       }).filter((_, index) => index > 0);
     }
-    
+
     console.log("🚀 ~ eventsData:", eventsData)
-    return;
 
-    // eventsData = eventsData.map((event: any) => {
-    //   const formatLanguagesArray = (languages: string) => {
-    //     let formattedArray: string[] = [];
-    //     if (!languages || (Array.isArray(languages) && !languages.length) || languages === " ") {
-    //       formattedArray = [];
-    //     } else if (languages.includes(", ")) {
-    //       formattedArray = languages.split(", ");
-    //     } else if (languages.includes(",") && !languages.includes(", ")) {
-    //       formattedArray = languages.split(",");
-    //     } else {
-    //       formattedArray = languages.split(" ");
-    //     }
-    //     return formattedArray;
-    //   }
+    eventsData = eventsData.map((event: any) => {
+      if (event.launchingDate) {
+        // If Excel date is stored as a number (Excel serial date)
+        if (typeof event.launchingDate === 'number') {
+          // Convert Excel serial date to JavaScript Date
+          // Excel dates are days since 1900-01-01 (except Excel thinks 1900 is a leap year)
+          event.launchingDate = new Date((event.launchingDate - 25569) * 86400 * 1000);
+        }
+        // If date is already in string format like '2023-05-15T14:30:00'
+        else if (typeof event.launchingDate === 'string') {
+          event.launchingDate = new Date(event.launchingDate);
+        }
+      }
+      if (event.listingDate) {
+        // If Excel date is stored as a number (Excel serial date)
+        if (typeof event.listingDate === 'number') {
+          // Convert Excel serial date to JavaScript Date
+          // Excel dates are days since 1900-01-01 (except Excel thinks 1900 is a leap year)
+          event.listingDate = new Date((event.listingDate - 25569) * 86400 * 1000);
+        }
+        // If date is already in string format like '2023-05-15T14:30:00'
+        else if (typeof event.listingDate === 'string') {
+          event.listingDate = new Date(event.listingDate);
+        }
+      }
+      if (event.phoneNumber) {
+        event.phoneNumber = event.phoneNumber.toString();
+      }
+      if (event.productCategories) {
+        event.productCategories = event.productCategories.split(",").map((item: any) => item.trim());
+      }
+      return {
+        ...event,
+        partnerId: req.user.id
+      };
+    });
 
-    //   let releaseDatetime;
+    console.log("eventsData: last and final ", eventsData);
 
-    //   if (event.releaseDatetime) {
-    //     // If Excel date is stored as a number (Excel serial date)
-    //     if (typeof event.releaseDatetime === 'number') {
-    //       // Convert Excel serial date to JavaScript Date
-    //       // Excel dates are days since 1900-01-01 (except Excel thinks 1900 is a leap year)
-    //       releaseDatetime = new Date((event.releaseDatetime - 25569) * 86400 * 1000);
-    //     }
-    //     // If date is already in string format like '2023-05-15T14:30:00'
-    //     else if (typeof event.releaseDatetime === 'string') {
-    //       releaseDatetime = new Date(event.releaseDatetime);
-    //     }
-    //   }
+    const errorDatas: any = [];
 
-    //   return {
-    //     defaultLanguageKey: event?.defaultLanguageKey.toString(),
-    //     languages: formatLanguagesArray(event?.languages),
-    //     eventCategory: event?.eventCategory.toString(),
-    //     commonNumber: event?.commonNumber,
-    //     country: event?.country.toString(),
-    //     releaseDatetime: releaseDatetime,
-    //     forecast: Number(event?.forecast || 0),
-    //     actual: Number(event?.actual || 0),
-    //     prior: Number(event?.prior || 0),
-    //     measureUnit: event?.measureUnit.toString(),
-    //     importance: event?.importance.toString(),
-    //     status: event?.status.toString(),
-    //     isActive: event?.isActive,
-    //     createdBy: req?.user?.id,
-    //     updatedBy: req?.user?.id,
-    //     economicEventsTranslationData: [
-    //       {
-    //         languageKey: event?.languageKey.toString(),
-    //         eventName: event?.eventName.toString(),
-    //         description: event?.description.toString(),
-    //         createdBy: req?.user?.id,
-    //         updatedBy: req?.user?.id,
-    //       }
-    //     ]
-    //   }
-    // })
+    eventsData.map((event: any) => {
+      if (event.phoneNumber) {
+        if (!/^\d{10}$/.test((event?.phoneNumber))) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Phone number is Invalid(not 10 digit number)!"
+          });
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-    // const eventNames = eventsData.map((item: any) => item?.economicEventsTranslationData?.map((item: any) => item?.eventName)).flat();
+        if (!emailRegex.test(event?.sellerEmailId)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid Email!"
+          });
+        }
 
-    // const isExist = await economicEventsRepository.checkEconomicEventExist({ eventName: eventNames });
-    // if (isExist) return message.ECONOMIC_EVENT_ALREADY_EXISTS;
+        const gstRegex =
+          /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
-    // const isInvalidCategoryDataExists = eventsData.find((item: any) => {
-    //   return !Object.values(enums.ECONOMIC_EVENTS_CATEGORY).includes(item?.eventCategory);
-    // });
+        if (!gstRegex.test(event?.gstNumber)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid GST Number!"
+          });
+        }
+        
+        const validBrandApprovalStatuses = ["pending", "approved"];
+        
+        if (!validBrandApprovalStatuses.includes(event.brandApproval)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid Brand Approval status!"
+          });
+        }
 
-    // if (isInvalidCategoryDataExists) {
-    //   return "Event category is invalid!";
-    // }
+        const validTrademarkClassStatuses = ["pending", "approved"];
 
-    // const isInvalidLanguageDataExists = eventsData.find((item: any) => {
+        if (!validTrademarkClassStatuses.includes(event.trademarkClass)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid trademark class status!"
+          });
+        }
+        
+        const validProductCategories = ["clothing", "electronics", "cosmetics"];
+        
+        const notValidProductCategories = event.productCategories.some((pc: any) => !validProductCategories.includes(pc))
+        
+        if (notValidProductCategories) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid product categories!"
+          });
+        }
+      }
+    });
 
-    //   const defaultLanguageKeyValid = Object.keys(enums.LANGUAGE_LIST).includes(item?.defaultLanguageKey);
-    //   const economicEventsTranslationDataValid = Object.keys(enums.LANGUAGE_LIST).includes(item?.economicEventsTranslationData?.[0]?.languageKey);
+    console.log("errorDatas: ", errorDatas);
 
-    //   return !defaultLanguageKeyValid || !economicEventsTranslationDataValid;
-    // });
+    const sellerIdsToExtract: any = [];
 
-    // if (isInvalidLanguageDataExists) {
-    //   return "Invalid language found!";
-    // }
+    if (errorDatas.length) {
+      // return "Invalid data found in the uploaded file!"
+      errorDatas.map((errorData: any) => {
+        sellerIdsToExtract.push(errorData.sellerId);
+      });
+    }
 
-    // //* this is for returning object in response starts
-    // const createableEventData: any = [];
+    if (sellerIdsToExtract.length) {
+      eventsData = eventsData.filter((event) => !sellerIdsToExtract.includes(event?.sellerId));
+    }
 
-    // eventsData.forEach((item: any) => {
-    //   createableEventData.push({
-    //     eventName: item?.economicEventsTranslationData?.[0]?.eventName,
-    //     description: item?.economicEventsTranslationData?.[0]?.description,
-    //     languageKey: item?.economicEventsTranslationData?.[0]?.languageKey,
-    //     status: item?.status,
-    //     releaseDatetime: item?.releaseDatetime,
-    //   });
-    // });
+    let sellersData = await partnerRepository.addSellersByPartnerUsingFile(eventsData);
 
-    // //* this is for returning object in response ends
+    if (!sellersData) return message.FAILED;
 
-    // const singleLingualData: any[] = [];
-    // const multiLingualData: any[] = [];
-
-    // eventsData.map((item: any) => {
-    //   if (item?.languages && Array.isArray(item?.languages) && item?.languages.length > 1) {
-    //     multiLingualData.push(item);
-    //   } else {
-    //     singleLingualData.push(item);
-    //   }
-    // })
-
-
-    // return;
-    // let sellersData = await partnerRepository.addSellersByPartnerUsingFile(req.user.id);
-    // console.log("🚀 ~ sellersData:", sellersData);
-
-    // return sellersData;
+    return {
+      errorDatas,
+      sellerAddedWithValidData: (sellersData.map((seller: any) => seller.get({ plain: true }))).length
+    };
   },
 
 };

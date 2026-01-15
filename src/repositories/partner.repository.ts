@@ -19,7 +19,7 @@ const partnerRepository = {
           {
             partnerId: {
               [Op.eq]: partnerId
-            },        
+            },
           }
         ]
       },
@@ -67,14 +67,24 @@ const partnerRepository = {
     return fetchedSellers;
   },
 
-  addSellersByPartnerUsingFile: async (partnerId: string) => {
-    const fetchedSellers = await db.PartnerAddedSellers.findAll({
-      where: {
-        partnerId,
-      },
-      raw: true
+  addSellersByPartnerUsingFile: async (dataToAdd: any) => {
+    const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
+      updateOnDuplicate: [
+        "sellerName",
+        "brandName",
+        "launchingDate",
+        "listingDate",
+        "sellerEmailId",
+        "phoneNumber",
+        "password",
+        "brandApproval",
+        "gstNumber",
+        "trademarkClass",
+        "productCategories",
+      ],
     });
-    return fetchedSellers;
+    console.log("🚀 ~ addedSellers:", addedSellers)
+    return addedSellers;
   },
 };
 

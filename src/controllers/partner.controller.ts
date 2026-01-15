@@ -14,11 +14,18 @@ const partnerController = {
         brandName: Joi.string().required(),
         launchingDate: Joi.string().required(),
         listingDate: Joi.string().required(),
-        sellerEmailId: Joi.string().required(),
-        phoneNumber: Joi.string().required(),
+        sellerEmailId: Joi.string().email().required(),
+        phoneNumber: Joi.string().pattern(/^\d{10}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Phone number must be exactly 10 digits",
+          }),
         password: Joi.string().required(),
         brandApproval: Joi.string().valid("pending", "approved").required(),
-        gstNumber: Joi.string().required(),
+        gstNumber: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
+          .messages({
+            "string.pattern.base": "Invalid GST number format",
+          }).required(),
         trademarkClass: Joi.string().valid("pending", "approved").required(),
         productCategories: Joi.array().items(Joi.string()).min(1).required()
       })
@@ -50,11 +57,17 @@ const partnerController = {
         brandName: Joi.string(),
         launchingDate: Joi.string(),
         listingDate: Joi.string(),
-        sellerEmailId: Joi.string(),
-        phoneNumber: Joi.string(),
+        sellerEmailId: Joi.string().email(),
+        phoneNumber: Joi.string().pattern(/^\d{10}$/)
+          .messages({
+            "string.pattern.base": "Phone number must be exactly 10 digits",
+          }),
         password: Joi.string(),
         brandApproval: Joi.string().valid("pending", "approved"),
-        gstNumber: Joi.string(),
+        gstNumber: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
+          .messages({
+            "string.pattern.base": "Invalid GST number format",
+          }),
         trademarkClass: Joi.string().valid("pending", "approved"),
         totalSKUs: Joi.number(),
         pendingSKUs: Joi.number(),
@@ -153,13 +166,22 @@ const partnerController = {
     validation: validator({
     }),
     handler: async (req: any, res: Response) => {
-      console.log("req.file: ", req.file);
-      console.log("req.body: ", req.body);
-      const sellersAddedByPartner = await partnerService.addSellersByPartnerUsingFile(req);
+
+      const sellersAddedByPartner: any = await partnerService.addSellersByPartnerUsingFile(req);
+      console.log("🚀 ~ sellersAddedByPartner:", sellersAddedByPartner)
+
+      if (!sellersAddedByPartner)
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: message.FAILED,
+        });
+
       return ApiResponse.OK({
         res,
-        message: "All sellers added successfully",
-        payload: {},
+        message: `${sellersAddedByPartner?.sellerAddedWithValidData} sellers added successfully and for others sellers with invalid data you need to change their details and add them manually or via file upload!`,
+        payload: {
+          errorDatas: sellersAddedByPartner?.errorDatas
+        },
       });
     },
   },
