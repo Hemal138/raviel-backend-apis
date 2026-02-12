@@ -11,7 +11,6 @@ const partnerController = {
       body: Joi.object({
         sellerId: Joi.string().required(),
         sellerName: Joi.string().required(),
-        brandName: Joi.string().required(),
         launchingDate: Joi.string().required(),
         listingDate: Joi.string().required(),
         sellerEmailId: Joi.string().email().required(),
@@ -29,7 +28,6 @@ const partnerController = {
             "string.pattern.base": "Invalid GST number format",
           })
           .required(),
-        trademarkClass: Joi.string().valid("pending", "approved").required(),
         productCategories: Joi.array()
           .items(
             Joi.string().valid(
@@ -79,7 +77,6 @@ const partnerController = {
     validation: validator({
       body: Joi.object({
         sellerName: Joi.string(),
-        brandName: Joi.string(),
         launchingDate: Joi.string(),
         listingDate: Joi.string(),
         sellerEmailId: Joi.string().email(),
@@ -95,7 +92,6 @@ const partnerController = {
           .messages({
             "string.pattern.base": "Invalid GST number format",
           }),
-        trademarkClass: Joi.string().valid("pending", "approved"),
         productCategories: Joi.array().items(
           Joi.string().valid(
             "Fashion",
@@ -563,6 +559,60 @@ const partnerController = {
         res,
         message: "Fetched file upload placeholders successfully",
         payload: fetchPlaceholderData,
+      });
+    },
+  },
+
+  downloadSellerPayoutOrGrowthReport: {
+    validation: validator({
+      query: Joi.object({
+        paymentByMonthYear: Joi.string()
+          .pattern(/^\d{4}-\d{2}-01$/)
+          .custom((value, helpers) => {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+              return helpers.error("date.invalid");
+            }
+            return value;
+          })
+          .messages({
+            "string.pattern.base": "Date must be in YYYY-MM-01 format",
+            "date.invalid": "Invalid date",
+          })
+          .optional(),
+        paymentType: Joi.string().valid("Fixed", "NMV", "all").required(),
+        fileType: Joi.string().valid("PDF", "Excel").required(),
+        reportType: Joi.string()
+          .valid("payoutReport", "sellerGrowth")
+          .required(),
+      }),
+    }),
+    handler: async (req: any, res: Response) => {
+      const fetchPayoutData: any =
+        await partnerService.downloadSellerPayoutOrGrowthReport(req, res);
+
+      // 🔥 FILE RESPONSE ALREADY SENT
+      if (res.headersSent) {
+        return;
+      }
+
+      if (!fetchPayoutData)
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: message.FAILED,
+        });
+
+      if (typeof fetchPayoutData === "string") {
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: fetchPayoutData,
+        });
+      }
+
+      return ApiResponse.OK({
+        res,
+        message: "Download seller payout or seller growth successfully",
+        payload: fetchPayoutData,
       });
     },
   },

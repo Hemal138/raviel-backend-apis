@@ -9,6 +9,7 @@ export interface DBConfig {
   dialect: Dialect;
   logging?: boolean;
   use_env_variable?: string;
+  pool?: any;
   dialectOptions?: {
     ssl?: {
       require: boolean;
@@ -26,6 +27,12 @@ const dbConfig: Record<"development" | "test" | "production", DBConfig> = {
     schema: process.env.DB_SCHEMA,
     dialect: "postgres",
     logging: false,
+    pool: {
+      max: 20,
+      min: 5,
+      acquire: 60000,
+      idle: 10000,
+    },
   },
   test: {
     username: process.env.DB_USERNAME,
@@ -44,6 +51,12 @@ const dbConfig: Record<"development" | "test" | "production", DBConfig> = {
     // host: process.env.DB_HOST,
     // schema: process.env.DB_SCHEMA,
     dialect: "postgres",
+    pool: {
+      max: 20,
+      min: 5,
+      acquire: 60000,
+      idle: 10000,
+    },
     logging: false,
     dialectOptions: {
       ssl: {

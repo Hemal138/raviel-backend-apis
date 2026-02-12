@@ -116,6 +116,9 @@ const userService = {
   // },
 
   registerUser: async (req: Request) => {
+    const user = await userRepository.findUser(req);
+
+    if (user) return message.USER_ALREADY_EXISTS;
     // 1️⃣ Create user
     const hashPassword = await helper.hashPassword({
       password: req.body.password,

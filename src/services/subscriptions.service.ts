@@ -57,6 +57,7 @@ const subscriptionService = {
           email: req.user?.email,
         });
       } catch (error: any) {
+        console.error("Error while creating razorpay customer: ", error);
         throw {
           statusCode: error.statusCode || 400,
           message: error.error?.description,
@@ -80,6 +81,7 @@ const subscriptionService = {
         total_count: req.body.recurringCount,
       });
     } catch (error: any) {
+      console.error("Error while creating razorpay subscription: ", error);
       throw {
         statusCode: error.statusCode || 400,
         message: error.error?.description,

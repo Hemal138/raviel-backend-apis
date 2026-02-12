@@ -66,6 +66,29 @@ const partnerRepository = {
     });
   },
 
+  findSellerByRealSellerIdsAddedByPartner: async (
+    sellerIdSet: string[],
+    partnerId: string,
+  ) => {
+    return await db.PartnerAddedSellers.findAll({
+      where: {
+        [Op.and]: [
+          {
+            sellerId: {
+              [Op.in]: sellerIdSet,
+            },
+          },
+          {
+            partnerId: {
+              [Op.eq]: partnerId,
+            },
+          },
+        ],
+      },
+      raw: true,
+    });
+  },
+
   updateSellerAddedByPartner: async (data: any, sellerId: string) => {
     const [updatedCount, [updatedSeller]] = await db.PartnerAddedSellers.update(
       data,
@@ -171,19 +194,38 @@ const partnerRepository = {
     return fetchedPlaceholders;
   },
 
+  fetchmonthlyFetchedPlaceholderData: async (filterQuery: any) => {
+    const fetchedPlaceholders =
+      await db.PartnerExcelFileUploadPlaceholders.findOne({
+        where: {
+          partnerId: filterQuery.user?.id,
+          expectedDate: filterQuery?.monthlyDate,
+        },
+        raw: true,
+      });
+    return fetchedPlaceholders;
+  },
+
   updatePartnerFileUploadPlaceholder: async (req: any) => {
+    function getMonthStartEnd(yyyyMM: string) {
+      const [year, month] = yyyyMM.split("-").map(Number);
+
+      const start = new Date(year, month - 1, 1); // YYYY-MM-01
+      const end = new Date(year, month, 0); // last day of month
+
+      return { start, end };
+    }
     const updatePlaceholders =
       await db.PartnerExcelFileUploadPlaceholders.update(
         {
           status: "uploaded",
           uploadedAt: new Date(),
+          fileName: req.file.originalname,
         },
         {
           where: {
             partnerId: req.user?.id,
-            ...(["weekly", "monthly"].includes(
-              req.body?.timelineDataTenure,
-            ) && {
+            ...(["weekly"].includes(req.body?.timelineDataTenure) && {
               expectedDate: {
                 [Op.between]: [
                   req.body?.dateRangeFromWeeklyOrMonthly,
@@ -191,6 +233,26 @@ const partnerRepository = {
                 ],
               },
             }),
+            // ...(["monthly"].includes(req.body?.timelineDataTenure) && {
+            //   expectedDate: {
+            //     [Op.between]: [
+            //       `${req.body?.dateRangeToWeeklyOrMonthly.split("-")[0]}-${req.body?.dateRangeToWeeklyOrMonthly.split("-")[1]}-01`,
+            //       `${req.body?.dateRangeToWeeklyOrMonthly.split("-")[0]}-${req.body?.dateRangeToWeeklyOrMonthly.split("-")[1]}-31`,
+            //     ],
+            //   },
+            // }),
+            ...(req.body?.timelineDataTenure === "monthly" &&
+              (() => {
+                const { start, end } = getMonthStartEnd(
+                  req.body?.dateRangeToWeeklyOrMonthly,
+                );
+
+                return {
+                  expectedDate: {
+                    [Op.between]: [start, end],
+                  },
+                };
+              })()),
             ...(req.body?.timelineDataTenure === "daily" && {
               expectedDate: req.body?.uploadDate,
             }),
@@ -360,28 +422,53 @@ ORDER BY d;
 
       weekly: `
     WITH weeks AS (
-      SELECT
-        d AS week_start,
-        'Week ' || ROW_NUMBER() OVER (ORDER BY d) AS label
-      FROM generate_series(
-        date_trunc('week', CURRENT_DATE) - INTERVAL '3 weeks',
-        date_trunc('week', CURRENT_DATE),
-        INTERVAL '1 week'
-        ) d
-        )
-        SELECT
-        weeks.label,
-        COALESCE(SUM(CASE WHEN o.shipment_status = 'DELIVERED' THEN o.order_value END), 0) AS delivered,
-        COALESCE(SUM(CASE WHEN o.shipment_status = 'RETURNED' THEN o.order_value END), 0) AS return,
-        COALESCE(SUM(CASE WHEN o.shipment_status = 'CANCELLED' THEN o.order_value END), 0) AS cancel,
-        COALESCE(SUM(CASE WHEN o.shipment_status = 'IN TRANSIT' THEN o.order_value END), 0) AS movement
-        FROM weeks
-        LEFT JOIN "raviel-local-schema"."partner_sellers_orders" o
-        ON date_trunc('week', o.created_at) = weeks.week_start
-        AND o.sellerr_id IN (:sellerIds)
-        GROUP BY weeks.week_start, weeks.label
-        ORDER BY weeks.week_start;
+  SELECT
+    d AS week_start,
+    'Week ' || ROW_NUMBER() OVER (ORDER BY d) AS label
+  FROM generate_series(
+    date_trunc('week', CURRENT_DATE) - INTERVAL '3 weeks',
+    date_trunc('week', CURRENT_DATE),
+    INTERVAL '1 week'
+  ) d
+)
+SELECT
+  weeks.label,
+  COALESCE(SUM(CASE WHEN o.shipment_status = 'DELIVERED' THEN o.order_value END), 0) AS delivered,
+  COALESCE(SUM(CASE WHEN o.shipment_status = 'RETURNED' THEN o.order_value END), 0) AS return,
+  COALESCE(SUM(CASE WHEN o.shipment_status = 'CANCELLED' THEN o.order_value END), 0) AS cancel,
+  COALESCE(SUM(CASE WHEN o.shipment_status = 'IN TRANSIT' THEN o.order_value END), 0) AS movement
+FROM weeks
+LEFT JOIN "raviel-local-schema"."partner_sellers_orders" o
+  ON date_trunc('week', o.created_at) = weeks.week_start
+  AND o.sellerr_id IN (:sellerIds)
+GROUP BY weeks.week_start, weeks.label
+ORDER BY weeks.week_start;
+
       `,
+      //   weekly: `
+      // WITH weeks AS (
+      //   SELECT
+      //     d AS week_start,
+      //     'Week ' || ROW_NUMBER() OVER (ORDER BY d) AS label
+      //   FROM generate_series(
+      //     date_trunc('week', CURRENT_DATE) - INTERVAL '3 weeks',
+      //     date_trunc('week', CURRENT_DATE),
+      //     INTERVAL '1 week'
+      //     ) d
+      //     )
+      //     SELECT
+      //     weeks.label,
+      //     COALESCE(SUM(CASE WHEN o.shipment_status = 'DELIVERED' THEN o.order_value END), 0) AS delivered,
+      //     COALESCE(SUM(CASE WHEN o.shipment_status = 'RETURNED' THEN o.order_value END), 0) AS return,
+      //     COALESCE(SUM(CASE WHEN o.shipment_status = 'CANCELLED' THEN o.order_value END), 0) AS cancel,
+      //     COALESCE(SUM(CASE WHEN o.shipment_status = 'IN TRANSIT' THEN o.order_value END), 0) AS movement
+      //     FROM weeks
+      //     LEFT JOIN "raviel-local-schema"."partner_sellers_orders" o
+      //     ON date_trunc('week', o.created_at) = weeks.week_start
+      //     AND o.sellerr_id IN (:sellerIds)
+      //     GROUP BY weeks.week_start, weeks.label
+      //     ORDER BY weeks.week_start;
+      //   `,
 
       annually: `
     WITH months AS (
@@ -411,6 +498,18 @@ ORDER BY d;
 
     const fetchSellers =
       await partnerRepository.fetchAllSellersAddedByPartner(req);
+
+    const sellerIds = fetchSellers?.map((seller: any) => seller?.id) || [];
+
+    if (!sellerIds.length) {
+      return {
+        labels: [],
+        Delivered: [],
+        Return: [],
+        Cancel: [],
+        Movement: [],
+      };
+    }
 
     const rows = await db.sequelize.query(queries[timeTenure], {
       replacements: {
@@ -472,7 +571,6 @@ ORDER BY d;
     const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
       updateOnDuplicate: [
         "sellerName",
-        "brandName",
         "launchingDate",
         "listingDate",
         "sellerEmailId",
@@ -480,7 +578,6 @@ ORDER BY d;
         "password",
         "brandApproval",
         "gstNumber",
-        "trademarkClass",
         "productCategories",
         "sellerEmailId",
         "sellerStatus",
@@ -491,6 +588,38 @@ ORDER BY d;
         "fixedPaymentMonthYear",
         "NMVPaymentAmount",
         "NMVPaymentMonthYear",
+      ],
+    });
+    return addedSellers;
+  },
+
+  createOrUpdateBulkSellersMonthlyFile: async (dataToAdd: any) => {
+    const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
+      updateOnDuplicate: [
+        "sellerName",
+        "launchingDate",
+        "sellerEmailId",
+        "currentSKUsLive",
+        "fixedPaymentAmount",
+        "fixedPaymentMonthYear",
+        "NMVPaymentAmount",
+        "NMVPaymentMonthYear",
+      ],
+    });
+    return addedSellers;
+  },
+
+  createOrUpdateBulkSellersWeeklyFile: async (dataToAdd: any) => {
+    const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
+      updateOnDuplicate: [
+        "sellerName",
+        "launchingDate",
+        "sellerEmailId",
+        "sellerStatus",
+        "currentSKUsLive",
+        "dominantL1AtLaunch",
+        "SKUsAtLaunch",
+        "currentSKUsLive",
       ],
     });
     return addedSellers;

@@ -5,19 +5,22 @@ import { message } from "../common/constants";
 import partnerRepository from "../repositories/partner.repository";
 import xlsx from "xlsx";
 import fs from "fs";
+import PDFDocument from "pdfkit";
 
 const partnerService = {
   partnerAddSellersViaForm: async (req: any) => {
-    const seller = await partnerRepository.findSellerAddedByPartner(
-      req.body.sellerId,
-      req.user.id,
-    );
+    const seller =
+      await partnerRepository.findSellerByRealSellerIdAddedByPartner(
+        req.body.sellerId,
+        req.user.id,
+      );
 
     if (seller) return message.SELLER_ALREADY_EXIST;
 
     const dataToCreate = {
       ...req.body,
       partnerId: req.user.id,
+      password: helper.encrypt(req.body.password),
     };
 
     const createdSelller =
@@ -656,7 +659,7 @@ const partnerService = {
     if (!filteredByQuery) return false;
 
     filteredByQuery = filteredByQuery.map((seller: any) => {
-      seller.password = helper.encrypt(seller.password);
+      // seller.password = helper.encrypt(seller.password);
       delete seller.sellerOrders;
 
       return seller;
@@ -679,7 +682,7 @@ const partnerService = {
       await partnerRepository.fetchAllSellersAddedByPartner(req);
 
     for (const seller of sellersData) {
-      seller.password = helper.encrypt(seller.password);
+      // seller.password = helper.encrypt(seller.password);
       const filterQuery: any = {};
       filterQuery.sellerId = seller?.id;
       const fetchedOrders =
@@ -688,7 +691,7 @@ const partnerService = {
       let totalGMV = 0;
 
       const data = fetchedOrders.reduce((acc: any, curr: any) => {
-        totalGMV = totalGMV + curr?.orderValue;
+        totalGMV = Number(totalGMV ?? 0) + Number(curr?.orderValue ?? 0);
         if (!acc[curr?.shipmentStatus]) {
           acc[curr?.shipmentStatus] = 1;
         } else {
@@ -751,6 +754,183 @@ const partnerService = {
     return sellersData;
   },
 
+  downloadSellerPayoutOrGrowthReport: async (req: any, res: any) => {
+    let sellersData =
+      await partnerRepository.fetchAllSellersAddedByPartner(req);
+
+    for (const seller of sellersData) {
+      delete seller.password;
+      const filterQuery: any = {};
+      filterQuery.sellerId = seller?.id;
+      const fetchedOrders =
+        await partnerRepository.fetchAllOrdersByPartner(filterQuery);
+
+      let totalGMV = 0;
+
+      const data = fetchedOrders.reduce((acc: any, curr: any) => {
+        totalGMV = totalGMV + curr?.orderValue;
+        return acc;
+      }, {});
+
+      seller.totalOrders = fetchedOrders.length;
+      seller.totalGMV = totalGMV;
+      seller.totalPayout =
+        (seller?.fixedPaymentAmount ?? 0) + (seller?.NMVPaymentAmount ?? 0);
+    }
+
+    const fetchMonthName = (dateOnly: string) => {
+      const monthIndex = Number(dateOnly.split("-")[1]) - 1;
+
+      const months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      return months[monthIndex];
+    };
+
+    if (req.query.reportType === "sellerGrowth") {
+      sellersData = sellersData.map((seller: any) => {
+        return {
+          "Seller ID": seller?.sellerId,
+          "Seller Name": seller?.sellerName,
+          Email: seller?.sellerEmailId,
+          "Launching Date": seller?.launchingDate,
+          "Total Orders": seller?.totalOrders,
+          GMV: seller?.totalGMV,
+          Category: seller?.dominantL1AtLaunch,
+        };
+      });
+    } else {
+      if (req.query.paymentType === "all") {
+        sellersData = sellersData
+          .filter(
+            (seller: any) =>
+              seller?.fixedPaymentMonthYear || seller?.NMVPaymentMonthYear,
+          )
+          .map((seller: any) => {
+            return {
+              Month: fetchMonthName(
+                seller?.fixedPaymentMonthYear || seller?.NMVPaymentMonthYear,
+              ),
+              "Seller ID": seller?.sellerId,
+              "Seller Name": seller?.sellerName,
+              Email: seller?.sellerEmailId,
+              "Fixed Payment (₹)":
+                seller?.fixedPaymentAmount > 0
+                  ? seller?.fixedPaymentAmount
+                  : "-",
+              "NMV Payment (₹)":
+                seller?.NMVPaymentAmount > 0 ? seller?.NMVPaymentAmount : "-",
+              "Total Payment (₹)":
+                seller?.totalPayout > 0 ? seller?.totalPayout : "-",
+            };
+          });
+      } else if (req.query.paymentType === "Fixed") {
+        sellersData = sellersData
+          .filter((seller: any) => seller?.fixedPaymentMonthYear)
+          .map((seller: any) => {
+            return {
+              Month: fetchMonthName(seller?.fixedPaymentMonthYear),
+              "Seller ID": seller?.sellerId,
+              "Seller Name": seller?.sellerName,
+              Email: seller?.sellerEmailId,
+              "Fixed Payment (₹)":
+                seller?.fixedPaymentAmount > 0
+                  ? seller?.fixedPaymentAmount
+                  : "-",
+              "Total Payment (₹)":
+                seller?.totalPayout > 0 ? seller?.totalPayout : "-",
+            };
+          });
+      } else if (req.query.paymentType === "NMV") {
+        sellersData = sellersData
+          .filter((seller: any) => seller?.NMVPaymentMonthYear)
+          .map((seller: any) => {
+            return {
+              Month: fetchMonthName(seller?.NMVPaymentMonthYear),
+              "Seller ID": seller?.sellerId,
+              "Seller Name": seller?.sellerName,
+              Email: seller?.sellerEmailId,
+              "NMV Payment (₹)":
+                seller?.NMVPaymentAmount > 0 ? seller?.NMVPaymentAmount : "-",
+              "Total Payment (₹)":
+                seller?.totalPayout > 0 ? seller?.totalPayout : "-",
+            };
+          });
+      } else {
+      }
+
+      const { fileType } = req.query;
+
+      if (fileType === "PDF") {
+        // -------- PDF --------
+        const doc = new PDFDocument({ margin: 40 });
+
+        // res.setHeader("Content-Type", "application/pdf");
+        // res.setHeader("Content-Disposition", "attachment; filename=users.pdf");
+
+        res.writeHead(200, {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "attachment; filename=users.pdf",
+        });
+
+        doc.pipe(res);
+
+        doc.fontSize(20).text("Users Report", { align: "center" });
+        doc.moveDown(2);
+
+        sellersData.forEach((seller: any, index: any) => {
+          doc.fontSize(12).text(`${index + 1}. ${seller?.["Seller Name"]}`);
+
+          Object.entries(seller).map((seller) => {
+            doc.text(`${seller[0]}: ${seller[1]}`);
+          });
+
+          doc.moveDown();
+        });
+
+        doc.end();
+        return;
+      }
+
+      if (fileType === "Excel") {
+        // 2. Convert JSON → worksheet
+        const worksheet = xlsx.utils.json_to_sheet(sellersData);
+
+        // 3. Create workbook
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Users");
+
+        // 4. Generate buffer
+        const excelBuffer = xlsx.write(workbook, {
+          bookType: "xlsx",
+          type: "buffer",
+        });
+
+        // // 5. Send response
+        res.status(200).set({
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": "attachment; filename=users.xlsx",
+        });
+
+        res.send(excelBuffer);
+        return;
+      }
+    }
+  },
+
   fetchAllOrdersByPartner: async (req: any) => {
     const filterQuery: any = {};
     filterQuery.sellerId = req.query.sellerId;
@@ -772,12 +952,17 @@ const partnerService = {
 
   fetchPartnerFileUploadPlaceholders: async (req: any) => {
     let filterQuery: any = {};
+
     filterQuery = {
       ...req.query,
       user: req.user,
+      monthlyDate: `${req.query.toDate.split("-")[0]}-${req.query.toDate.split("-")[1]}-01`,
     };
     const fetchedPlaceholdersData =
       await partnerRepository.fetchPartnerFileUploadPlaceholders(filterQuery);
+
+    const monthlyFetchedPlaceholderData =
+      await partnerRepository.fetchmonthlyFetchedPlaceholderData(filterQuery);
 
     const newData = fetchedPlaceholdersData.reduce((acc: any, curr: any) => {
       if (!acc[curr?.expectedDate]) {
@@ -787,6 +972,16 @@ const partnerService = {
       }
       return acc;
     }, {});
+
+    const firstDateToFillMonthlyPlaceholder = Object.keys(newData).find(
+      (date) => date.includes(filterQuery.toDate.split("-")[1]),
+    );
+
+    if (firstDateToFillMonthlyPlaceholder) {
+      newData?.[firstDateToFillMonthlyPlaceholder as any].push(
+        monthlyFetchedPlaceholderData,
+      );
+    }
 
     if (!newData) return message.FAILED;
 
@@ -839,22 +1034,21 @@ const partnerService = {
           return {
             sellerId: item[emptyKeyNames[0]],
             sellerName: item[emptyKeyNames[1]],
-            brandName: item[emptyKeyNames[2]],
-            launchingDate: item[emptyKeyNames[3]],
-            listingDate: item[emptyKeyNames[4]],
-            sellerEmailId: item[emptyKeyNames[5]],
-            phoneNumber: item[emptyKeyNames[6]],
-            password: item[emptyKeyNames[7]],
-            brandApproval: item[emptyKeyNames[8]],
-            gstNumber: item[emptyKeyNames[9]],
-            trademarkClass: item[emptyKeyNames[10]],
-            productCategories: item[emptyKeyNames[11]],
+            launchingDate: item[emptyKeyNames[2]],
+            listingDate: item[emptyKeyNames[3]],
+            sellerEmailId: item[emptyKeyNames[4]],
+            phoneNumber: item[emptyKeyNames[5]],
+            password: item[emptyKeyNames[6]],
+            brandApproval: item[emptyKeyNames[7]],
+            gstNumber: item[emptyKeyNames[8]],
+            productCategories: item[emptyKeyNames[9]],
           };
         })
         .filter((_, index) => index > 0);
     }
 
     eventsData = eventsData.map((event: any) => {
+      event.password = helper.encrypt(event.password);
       if (event.launchingDate) {
         // If Excel date is stored as a number (Excel serial date)
         if (typeof event.launchingDate === "number") {
@@ -932,15 +1126,6 @@ const partnerService = {
           errorDatas.push({
             sellerId: event.sellerId,
             errorMessage: "Invalid Brand Approval status!",
-          });
-        }
-
-        const validTrademarkClassStatuses = ["pending", "approved"];
-
-        if (!validTrademarkClassStatuses.includes(event.trademarkClass)) {
-          errorDatas.push({
-            sellerId: event.sellerId,
-            errorMessage: "Invalid trademark class status!",
           });
         }
 
@@ -1197,7 +1382,6 @@ const partnerService = {
         }
         return event;
       });
-      console.log("🚀 ~ eventsData:", eventsData);
 
       // const sellerDataSingular: any = {};
 
@@ -1250,16 +1434,29 @@ const partnerService = {
         }
       }
 
+      const sellerIdSet = [...new Set(eventsData.map((e) => e["Seller ID"]))];
+
+      const sellersDataFromDB =
+        await partnerRepository.findSellerByRealSellerIdsAddedByPartner(
+          sellerIdSet,
+          req.user.id,
+        );
+
+      // Create lookup map
+      const sellerMap = new Map(
+        sellersDataFromDB.map((s: any) => [s.sellerId, s.id]),
+      );
+
       let senitizedOrdersData = await Promise.all(
         eventsData.map(async (event: any) => {
-          const findSeller =
-            await partnerRepository.findSellerByRealSellerIdAddedByPartner(
-              event?.["Seller ID"],
-              req.user?.id,
-            );
+          // const findSeller =
+          //   await partnerRepository.findSellerByRealSellerIdsAddedByPartner(
+          //     sellerIdSet,
+          //     req.user?.id,
+          //   );
 
           return {
-            sellerrId: findSeller?.id,
+            sellerrId: sellerMap.get(event["Seller ID"]),
             orderCreatedDate: event?.["Order Created Date"],
             orderId: event?.["Order ID"],
             shipmentId: event?.["Shipment ID"],
@@ -1310,18 +1507,15 @@ const partnerService = {
 
       for (const row of senitizedOrdersData) {
         const key = `${row.sellerrId}|${row.orderId}|${row.shipmentId}`;
-        console.log("🚀 ~ key:", key);
 
         // last occurrence wins (latest status)
 
         if (uniqueOrdersMap.has(key)) {
-          console.log("key ekdo: ", key, "row ekdo: ", row);
         }
         uniqueOrdersMap.set(key, row);
       }
 
       const finalUniqueOrders = Array.from(uniqueOrdersMap.values());
-      console.log("🚀 ~ finalUniqueOrders:", finalUniqueOrders.length);
       // }
 
       // -------- shipment end -----
@@ -1468,7 +1662,7 @@ const partnerService = {
         dominantL1AtLaunch: row["Dominant L1 At Launch"]?.trim() ?? "",
         SKUsAtLaunch: row["SKU At Launch"] ?? 0,
         currentSKUsLive: row["Current SKU Live"] ?? 0,
-        // partnerId: req.user?.id,
+        partnerId: req.user?.id,
       }));
 
       const uniqueMap = new Map<string, any>();
@@ -1479,19 +1673,22 @@ const partnerService = {
 
       const finalData = Array.from(uniqueMap.values());
 
-      // let sellersData =
-      //   await partnerRepository.createOrUpdateBulkSellers(finalData);
+      let sellersData =
+        await partnerRepository.createOrUpdateBulkSellersWeeklyFile(finalData);
 
-      for (const seller of sanitizedSellers) {
-        let sellersData =
-          await partnerRepository.updateSellerByReaiSellerIdAddedByPartner(
-            seller,
-            seller?.sellerId,
-          );
+      // for (const seller of sanitizedSellers) {
+      //   let sellersData =
+      //     await partnerRepository.updateSellerByReaiSellerIdAddedByPartner(
+      //       seller,
+      //       seller?.sellerId,
+      //     );
 
-        if (!sellersData) {
-          return message.FAILED;
-        }
+      //   if (!sellersData) {
+      //     return message.FAILED;
+      //   }
+      // }
+      if (!sellersData) {
+        return message.FAILED;
       }
 
       const updatePlaceholder =
@@ -1640,7 +1837,7 @@ const partnerService = {
                 ),
               }
             : null),
-        // partnerId: req.user?.id,
+        partnerId: req.user?.id,
       }));
 
       // const uniqueMap = new Map<string, any>();
@@ -1651,18 +1848,23 @@ const partnerService = {
 
       // const finalData = Array.from(uniqueMap.values());
 
-      // let sellersData =
-      //   await partnerRepository.createOrUpdateBulkSellers(sanitizedSellers);
-      for (const seller of sanitizedSellers) {
-        let sellersData =
-          await partnerRepository.updateSellerByReaiSellerIdAddedByPartner(
-            seller,
-            seller?.sellerId,
-          );
+      let sellersData =
+        await partnerRepository.createOrUpdateBulkSellersMonthlyFile(
+          sanitizedSellers,
+        );
+      // for (const seller of sanitizedSellers) {
+      //   let sellersData =
+      //     await partnerRepository.updateSellerByReaiSellerIdAddedByPartner(
+      //       seller,
+      //       seller?.sellerId,
+      //     );
 
-        if (!sellersData) {
-          return message.FAILED;
-        }
+      //   if (!sellersData) {
+      //     return message.FAILED;
+      //   }
+      // }
+      if (!sellersData) {
+        return message.FAILED;
       }
 
       const updatePlaceholder =

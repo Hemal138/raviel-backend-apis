@@ -1,6 +1,4 @@
 import { Sequelize, DataTypes, Model } from "sequelize";
-import { enums } from "../common/constants";
-import { alternatives } from "joi";
 type UUID = string & { readonly __brand: unique symbol };
 
 const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
@@ -16,7 +14,6 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
     public password!: string;
     public brandApproval!: string;
     public gstNumber!: string;
-    public trademarkClass!: string;
     public dominantL1AtLaunch!: string;
     public SKUsAtLaunch!: number;
     public currentSKUsLive!: number;
@@ -103,11 +100,6 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
         field: "gst_number",
         allowNull: true,
       },
-      trademarkClass: {
-        type: DataTypes.ENUM("pending", "approved"),
-        field: "trademark_class",
-        allowNull: true,
-      },
       dominantL1AtLaunch: {
         type: DataTypes.STRING,
         field: "dominant_L1_at_launch",
@@ -147,7 +139,6 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
       },
       fixedPaymentReceivedOrNot: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: false,
         field: "fixed_payment_received_or_not",
       },
@@ -164,7 +155,6 @@ const PartnerAddedSellers = (sequelize: Sequelize, DataTypes: any) => {
       },
       NMVPaymentReceivedOrNot: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: false,
         field: "nmv_payment_received_or_not",
       },

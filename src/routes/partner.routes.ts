@@ -32,9 +32,6 @@ const router = express.Router();
  *                sellerName:
  *                  type: string
  *                  example: John Doe
- *                brandName:
- *                  type: string
- *                  example: Jd evergreen
  *                launchingDate:
  *                  type: string
  *                  example: 2025-06-14
@@ -56,9 +53,6 @@ const router = express.Router();
  *                gstNumber:
  *                  type: string
  *                  example: 29AAACR5055K1Z6
- *                trademarkClass:
- *                  type: string
- *                  example: pending
  *                productCategories:
  *                  type: array
  *                  items:
@@ -129,9 +123,6 @@ router.post(
  *                sellerName:
  *                  type: string
  *                  example: John Doe
- *                brandName:
- *                  type: string
- *                  example: Jd evergreen
  *                launchingDate:
  *                  type: string
  *                  example: 2025-06-14
@@ -162,9 +153,6 @@ router.post(
  *                currentSKUsLive:
  *                  type: number
  *                  example: 70
- *                trademarkClass:
- *                  type: string
- *                  example: pending
  *                productCategories:
  *                  type: array
  *                  items:
@@ -332,9 +320,6 @@ router.delete(
  *                        sellerName:
  *                          type: string
  *                          example: John Doe
- *                        brandName:
- *                          type: string
- *                          example: Jd evergreen
  *                        launchingDate:
  *                          type: string
  *                          example: 2025-06-14
@@ -356,9 +341,6 @@ router.delete(
  *                        gstNumber:
  *                          type: string
  *                          example: "29AAACR5055K1Z6"
- *                        trademarkClass:
- *                          type: string
- *                          example: pending
  *                        dominantL1AtLaunch:
  *                          type: string
  *                          example: Fashion
@@ -562,9 +544,6 @@ router.get(
  *                        sellerName:
  *                          type: string
  *                          example: John Doe
- *                        brandName:
- *                          type: string
- *                          example: Jd evergreen
  *                        launchingDate:
  *                          type: string
  *                          example: 2025-06-14
@@ -586,9 +565,6 @@ router.get(
  *                        gstNumber:
  *                          type: string
  *                          example: "29AAACR5055K1Z6"
- *                        trademarkClass:
- *                          type: string
- *                          example: pending
  *                        dominantL1AtLaunch:
  *                          type: string
  *                          example: Fashion
@@ -1800,6 +1776,78 @@ router.get(
   }),
   partnerController.fetchPartnerFileUploadPlaceholders.validation,
   partnerController.fetchPartnerFileUploadPlaceholders.handler,
+);
+
+//? get
+/**
+ * @openapi
+ * /partner/download-seller-payout-or-growth-report:
+ *    get:
+ *      tags:
+ *      - Partner
+ *      summary: download-seller-payout-or-growth-report-api
+ *      description: This is the API for downloading seller payout or growth report.
+ *      operationId: download-seller-payout-or-growth-report-api
+ *      deprecated: false
+ *      security:
+ *        - bearerAuth: []
+ *      parameters:
+ *        - name: paymentByMonthYear
+ *          in: query
+ *          schema:
+ *            type: string
+ *          example: 2026-02-01
+ *        - name: paymentType
+ *          in: query
+ *          schema:
+ *            type: string
+ *            enum: ["Fixed", "NMV", "all"]
+ *          required: true
+ *        - name: fileType
+ *          in: query
+ *          schema:
+ *            type: string
+ *            enum: ["PDF", "Excel"]
+ *          required: true
+ *        - name: reportType
+ *          in: query
+ *          schema:
+ *            type: string
+ *            enum: ["payoutReport", "sellerGrowth"]
+ *          required: true
+ *      requestBody: []
+ *      responses:
+ *        200:
+ *          description: OK
+ *          headers: {}
+ *          content:
+ *            application/json; charset=utf-8:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                    example: true
+ *                  status:
+ *                    type: integer
+ *                    format: int32
+ *                    example: 200
+ *                  message:
+ *                    type: string
+ *                    example: "Download seller payout or seller growth successfully"
+ *                  payload:
+ *                    type: object
+ *                    example: {}
+ */
+//* Download seller payout or growth report API
+router.get(
+  "/download-seller-payout-or-growth-report",
+  auth({
+    isTokenRequired: true,
+    usersAllowed: [enums.ROLE.PARTNER],
+  }),
+  partnerController.downloadSellerPayoutOrGrowthReport.validation,
+  partnerController.downloadSellerPayoutOrGrowthReport.handler,
 );
 
 export default router;

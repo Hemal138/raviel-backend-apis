@@ -31,12 +31,12 @@ const userRepository = {
               model: db.SubscriptionPlans,
               as: "subscriptionPlanDetails",
               required: false, // ✅ IMPORTANT,
-            }
-          ]
-        }
+            },
+          ],
+        },
       ],
       raw: true,
-      nest: true
+      nest: true,
     });
   },
 

@@ -39,6 +39,11 @@ const userController = {
           res,
           message: message.FAILED,
         });
+      if (typeof user === "string")
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: user,
+        });
 
       return ApiResponse.CREATED({
         res,

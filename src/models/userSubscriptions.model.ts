@@ -82,7 +82,6 @@ const UserSubscriptions = (sequelize: Sequelize, DataTypes: any) => {
       status: {
         type: DataTypes.ENUM(
           "created",
-          // "pending_confirmation",
           "active",
           "halted",
           "completed",

@@ -35,19 +35,23 @@ const errorHandler = async (
   err: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
+  if (res.headersSent) {
+    return; // or just return;
+  }
+
   //* Log error
   logger.warn(
-    `ERROR at PATH: [${req.path}] METHOD: [${req.method}] MESSAGE: [${err.message}]`
+    `ERROR at PATH: [${req.path}] METHOD: [${req.method}] MESSAGE: [${err.message}]`,
   );
 
   if (err.provider === "RAZORPAY") {
-  return ApiResponse.BAD_REQUEST({
-    res,
-    message: err.message,
-  });
-}
+    return ApiResponse.BAD_REQUEST({
+      res,
+      message: err.message,
+    });
+  }
 
   //* Handling JSON syntax error
   if (err instanceof SyntaxError && err.message.includes("JSON"))
