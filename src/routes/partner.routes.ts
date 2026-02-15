@@ -1802,7 +1802,6 @@ router.get(
  *          schema:
  *            type: string
  *            enum: ["Fixed", "NMV", "all"]
- *          required: true
  *        - name: fileType
  *          in: query
  *          schema:

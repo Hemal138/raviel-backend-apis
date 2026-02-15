@@ -66,6 +66,33 @@ const partnerRepository = {
     });
   },
 
+  findSellerWithMultipleFieldMatchingByRealSellerIdAddedByPartner: async (
+    multipleFields: string[],
+    partnerId: string,
+  ) => {
+    return await db.PartnerAddedSellers.findOne({
+      where: {
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { sellerId: { [Op.in]: multipleFields } },
+              { sellerName: { [Op.in]: multipleFields } },
+              { sellerEmailId: { [Op.in]: multipleFields } },
+              { phoneNumber: { [Op.in]: multipleFields } },
+              { gstNumber: { [Op.in]: multipleFields } },
+            ],
+          },
+          {
+            partnerId: {
+              [Op.eq]: partnerId,
+            },
+          },
+        ],
+      },
+      raw: true,
+    });
+  },
+
   findSellerByRealSellerIdsAddedByPartner: async (
     sellerIdSet: string[],
     partnerId: string,
@@ -77,6 +104,32 @@ const partnerRepository = {
             sellerId: {
               [Op.in]: sellerIdSet,
             },
+          },
+          {
+            partnerId: {
+              [Op.eq]: partnerId,
+            },
+          },
+        ],
+      },
+      raw: true,
+    });
+  },
+
+  findSellersByMultipleFieldsAddedByPartner: async (
+    multipleFieldSet: string[],
+    partnerId: string,
+  ) => {
+    return await db.PartnerAddedSellers.findAll({
+      where: {
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { sellerName: { [Op.in]: multipleFieldSet } },
+              { sellerEmailId: { [Op.in]: multipleFieldSet } },
+              { phoneNumber: { [Op.in]: multipleFieldSet } },
+              { gstNumber: { [Op.in]: multipleFieldSet } },
+            ],
           },
           {
             partnerId: {
@@ -579,13 +632,18 @@ ORDER BY weeks.week_start;
         "brandApproval",
         "gstNumber",
         "productCategories",
+      ],
+    });
+    return addedSellers;
+  },
+
+  createOrUpdateBulkSellersMonthlyNMVFile: async (dataToAdd: any) => {
+    const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
+      updateOnDuplicate: [
+        "sellerName",
+        "launchingDate",
         "sellerEmailId",
-        "sellerStatus",
-        "dominantL1AtLaunch",
-        "SKUsAtLaunch",
         "currentSKUsLive",
-        "fixedPaymentAmount",
-        "fixedPaymentMonthYear",
         "NMVPaymentAmount",
         "NMVPaymentMonthYear",
       ],
@@ -593,7 +651,7 @@ ORDER BY weeks.week_start;
     return addedSellers;
   },
 
-  createOrUpdateBulkSellersMonthlyFile: async (dataToAdd: any) => {
+  createOrUpdateBulkSellersMonthlyFixedFile: async (dataToAdd: any) => {
     const addedSellers = await db.PartnerAddedSellers.bulkCreate(dataToAdd, {
       updateOnDuplicate: [
         "sellerName",
@@ -602,8 +660,6 @@ ORDER BY weeks.week_start;
         "currentSKUsLive",
         "fixedPaymentAmount",
         "fixedPaymentMonthYear",
-        "NMVPaymentAmount",
-        "NMVPaymentMonthYear",
       ],
     });
     return addedSellers;

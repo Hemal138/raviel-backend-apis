@@ -10,12 +10,19 @@ import PDFDocument from "pdfkit";
 const partnerService = {
   partnerAddSellersViaForm: async (req: any) => {
     const seller =
-      await partnerRepository.findSellerByRealSellerIdAddedByPartner(
-        req.body.sellerId,
+      await partnerRepository.findSellerWithMultipleFieldMatchingByRealSellerIdAddedByPartner(
+        [
+          req.body.sellerId,
+          req.body.sellerName,
+          req.body.sellerEmailId,
+          req.body.phoneNumber,
+          req.body.gstNumber,
+        ],
         req.user.id,
       );
 
-    if (seller) return message.SELLER_ALREADY_EXIST;
+    if (seller)
+      return "Seller already exists with one or more of the following fields: Seller ID, Seller Name, Email, Phone Number, or GST Number.";
 
     const dataToCreate = {
       ...req.body,
@@ -768,7 +775,7 @@ const partnerService = {
       let totalGMV = 0;
 
       const data = fetchedOrders.reduce((acc: any, curr: any) => {
-        totalGMV = totalGMV + curr?.orderValue;
+        totalGMV = Number(totalGMV ?? 0) + Number(curr?.orderValue ?? 0);
         return acc;
       }, {});
 
@@ -868,66 +875,90 @@ const partnerService = {
                 seller?.totalPayout > 0 ? seller?.totalPayout : "-",
             };
           });
+      }
+    }
+
+    const { fileType } = req.query;
+
+    if (!sellersData.length) {
+      if (req.query.reportType === "sellerGrowth") {
+        return "No sellers found!";
       } else {
+        if (req.query.paymentType === "NMV") {
+          if (req.query.paymentByMonthYear) {
+            return "No NMV payout data available for the selected month and year!";
+          } else {
+            return "No Seller NMV payout data found!";
+          }
+        } else if (req.query.paymentType === "Fixed") {
+          if (req.query.paymentByMonthYear) {
+            return "No Fixed payout records found for the selected month and year!";
+          } else {
+            return "No Fixed NMV payout data found!";
+          }
+        } else if (req.query.paymentType === "all") {
+          if (req.query.paymentByMonthYear) {
+            return "No payout data found for the selected month and year!";
+          } else {
+            return "No seller payout data found!";
+          }
+        }
       }
+    }
+    if (fileType === "PDF") {
+      // -------- PDF --------
+      const doc = new PDFDocument({ margin: 40 });
 
-      const { fileType } = req.query;
+      // res.setHeader("Content-Type", "application/pdf");
+      // res.setHeader("Content-Disposition", "attachment; filename=users.pdf");
 
-      if (fileType === "PDF") {
-        // -------- PDF --------
-        const doc = new PDFDocument({ margin: 40 });
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "attachment; filename=users.pdf",
+      });
 
-        // res.setHeader("Content-Type", "application/pdf");
-        // res.setHeader("Content-Disposition", "attachment; filename=users.pdf");
+      doc.pipe(res);
 
-        res.writeHead(200, {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": "attachment; filename=users.pdf",
+      doc.fontSize(20).text("Users Report", { align: "center" });
+      doc.moveDown(2);
+
+      sellersData.forEach((seller: any, index: any) => {
+        doc.fontSize(12).text(`${index + 1}. ${seller?.["Seller Name"]}`);
+
+        Object.entries(seller).map((seller) => {
+          doc.text(`${seller[0]}: ${seller[1]}`);
         });
 
-        doc.pipe(res);
+        doc.moveDown();
+      });
 
-        doc.fontSize(20).text("Users Report", { align: "center" });
-        doc.moveDown(2);
+      doc.end();
+      return;
+    }
 
-        sellersData.forEach((seller: any, index: any) => {
-          doc.fontSize(12).text(`${index + 1}. ${seller?.["Seller Name"]}`);
+    if (fileType === "Excel") {
+      // 2. Convert JSON → worksheet
+      const worksheet = xlsx.utils.json_to_sheet(sellersData);
 
-          Object.entries(seller).map((seller) => {
-            doc.text(`${seller[0]}: ${seller[1]}`);
-          });
+      // 3. Create workbook
+      const workbook = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Users");
 
-          doc.moveDown();
-        });
+      // 4. Generate buffer
+      const excelBuffer = xlsx.write(workbook, {
+        bookType: "xlsx",
+        type: "buffer",
+      });
 
-        doc.end();
-        return;
-      }
+      // // 5. Send response
+      res.status(200).set({
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": "attachment; filename=users.xlsx",
+      });
 
-      if (fileType === "Excel") {
-        // 2. Convert JSON → worksheet
-        const worksheet = xlsx.utils.json_to_sheet(sellersData);
-
-        // 3. Create workbook
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, "Users");
-
-        // 4. Generate buffer
-        const excelBuffer = xlsx.write(workbook, {
-          bookType: "xlsx",
-          type: "buffer",
-        });
-
-        // // 5. Send response
-        res.status(200).set({
-          "Content-Type":
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": "attachment; filename=users.xlsx",
-        });
-
-        res.send(excelBuffer);
-        return;
-      }
+      res.send(excelBuffer);
+      return;
     }
   },
 
@@ -1047,9 +1078,46 @@ const partnerService = {
         .filter((_, index) => index > 0);
     }
 
-    eventsData = eventsData.map((event: any) => {
-      event.password = helper.encrypt(event.password);
-      if (event.launchingDate) {
+    const errorDatas: any = [];
+
+    const sellerIdsFromUploadedFile: string[] = [];
+    const sellerNamesFromUploadedFile: string[] = [];
+    const sellerEmailIdsFromUploadedFile: string[] = [];
+    const phoneNumbersFromUploadedFile: string[] = [];
+    const gstNumbersFromUploadedFile: string[] = [];
+
+    eventsData = eventsData.map((event: any, index: any) => {
+      if (!event.sellerId) {
+        errorDatas.push({
+          sellerId: `row ${index + 2}`,
+          errorMessage: `Seller ID is required for row ${index + 2}!`,
+        });
+      } else {
+        sellerIdsFromUploadedFile.push(event.sellerId);
+        const sellerIdRegex = /^[A-Z0-9]{6}$/;
+        if (!sellerIdRegex.test(event?.sellerId)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: `Seller ID is invalid!`,
+          });
+        }
+      }
+
+      if (!event.sellerName) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "Seller Name is required!",
+        });
+      } else {
+        sellerNamesFromUploadedFile.push(event.sellerName);
+      }
+
+      if (!event.launchingDate) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "Launching date is required!",
+        });
+      } else {
         // If Excel date is stored as a number (Excel serial date)
         if (typeof event.launchingDate === "number") {
           // Convert Excel serial date to JavaScript Date
@@ -1063,6 +1131,7 @@ const partnerService = {
           event.launchingDate = new Date(event.launchingDate);
         }
       }
+
       if (event.listingDate) {
         // If Excel date is stored as a number (Excel serial date)
         if (typeof event.listingDate === "number") {
@@ -1077,30 +1146,14 @@ const partnerService = {
           event.listingDate = new Date(event.listingDate);
         }
       }
-      if (event.phoneNumber) {
-        event.phoneNumber = event.phoneNumber.toString();
-      }
-      if (event.productCategories) {
-        event.productCategories = event.productCategories
-          .split(",")
-          .map((item: any) => item.trim());
-      }
-      return {
-        ...event,
-        partnerId: req.user.id,
-      };
-    });
 
-    const errorDatas: any = [];
-
-    eventsData.map((event: any) => {
-      if (event.phoneNumber) {
-        if (!/^\d{10}$/.test(event?.phoneNumber)) {
-          errorDatas.push({
-            sellerId: event.sellerId,
-            errorMessage: "Phone number is Invalid(not 10 digit number)!",
-          });
-        }
+      if (!event.sellerEmailId) {
+        return {
+          sellerId: event.sellerId,
+          errorMessage: "Email is required!",
+        };
+      } else {
+        sellerEmailIdsFromUploadedFile.push(event.sellerEmailId);
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
         if (!emailRegex.test(event?.sellerEmailId)) {
@@ -1109,7 +1162,55 @@ const partnerService = {
             errorMessage: "Invalid Email!",
           });
         }
+      }
 
+      if (!event.phoneNumber) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "Phone number is required!",
+        });
+      } else {
+        phoneNumbersFromUploadedFile.push(String(event.phoneNumber));
+        if (!/^\d{10}$/.test(event?.phoneNumber.toString())) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Phone number is Invalid(not 10 digit number)!",
+          });
+        }
+      }
+
+      if (!event.password) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "Password is required!",
+        });
+      } else {
+        event.password = helper.encrypt(event.password.toString());
+      }
+
+      if (!event.brandApproval) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "Brand approval is required!",
+        });
+      } else {
+        const validBrandApprovalStatuses = ["pending", "approved"];
+
+        if (!validBrandApprovalStatuses.includes(event.brandApproval)) {
+          errorDatas.push({
+            sellerId: event.sellerId,
+            errorMessage: "Invalid Brand Approval status!",
+          });
+        }
+      }
+
+      if (!event.gstNumber) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "GST Number is required!",
+        });
+      } else {
+        gstNumbersFromUploadedFile.push(event.gstNumber);
         const gstRegex =
           /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
@@ -1119,15 +1220,17 @@ const partnerService = {
             errorMessage: "Invalid GST Number!",
           });
         }
+      }
 
-        const validBrandApprovalStatuses = ["pending", "approved"];
-
-        if (!validBrandApprovalStatuses.includes(event.brandApproval)) {
-          errorDatas.push({
-            sellerId: event.sellerId,
-            errorMessage: "Invalid Brand Approval status!",
-          });
-        }
+      if (!event.productCategories) {
+        errorDatas.push({
+          sellerId: event.sellerId,
+          errorMessage: "At least one product category is required!",
+        });
+      } else {
+        event.productCategories = event.productCategories
+          .split(",")
+          .map((item: any) => item.trim());
 
         const validProductCategories = [
           "Fashion",
@@ -1150,7 +1253,6 @@ const partnerService = {
         const notValidProductCategories = event.productCategories.some(
           (pc: any) => !validProductCategories.includes(pc),
         );
-
         if (notValidProductCategories) {
           errorDatas.push({
             sellerId: event.sellerId,
@@ -1158,22 +1260,209 @@ const partnerService = {
           });
         }
       }
+
+      event.partnerId = req.user?.id;
+
+      return event;
     });
 
-    const sellerIdsToExtract: any = [];
+    // const repeatedSellerIdCount: Record<string, number> = {};
 
-    if (errorDatas.length) {
-      // return "Invalid data found in the uploaded file!"
-      errorDatas.map((errorData: any) => {
-        sellerIdsToExtract.push(errorData.sellerId);
-      });
-    }
+    // for (const id of sellerIdsFromUploadedFile) {
+    //   repeatedSellerIdCount[id] = (repeatedSellerIdCount[id] || 0) + 1;
+    // }
 
-    if (sellerIdsToExtract.length) {
-      eventsData = eventsData.filter(
-        (event) => !sellerIdsToExtract.includes(event?.sellerId),
+    const repeatedSellerIds: Record<string, number> =
+      sellerIdsFromUploadedFile.reduce(
+        (acc, id) => {
+          acc[id] = (acc[id] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
       );
+
+    // keep only count > 1
+    Object.keys(repeatedSellerIds).forEach((id) => {
+      if (repeatedSellerIds[id] === 1) {
+        delete repeatedSellerIds[id];
+      }
+    });
+
+    Object.entries(repeatedSellerIds).map((sellerId: any) => {
+      errorDatas.push({
+        sellerId: sellerId[0],
+        errorMessage: `Repeated ${sellerId[1]} times`,
+      });
+    });
+
+    const findSellersIfRepeatedWithSellerIds =
+      await partnerRepository.findSellerByRealSellerIdsAddedByPartner(
+        sellerIdsFromUploadedFile,
+        req.user?.id,
+      );
+
+    if (findSellersIfRepeatedWithSellerIds.length) {
+      for (const seller of findSellersIfRepeatedWithSellerIds) {
+        errorDatas.push({
+          sellerId: seller.sellerId,
+          errorMessage: `Seller ID already exists!`,
+        });
+      }
     }
+
+    const findSellersIfRepeatedWithSellerNames =
+      await partnerRepository.findSellersByMultipleFieldsAddedByPartner(
+        sellerNamesFromUploadedFile,
+        req.user?.id,
+      );
+
+    if (sellerNamesFromUploadedFile.length) {
+      for (const seller of findSellersIfRepeatedWithSellerNames) {
+        errorDatas.push({
+          sellerId: seller?.sellerName,
+          errorMessage: `Seller Name is already exists!`,
+        });
+      }
+    }
+
+    const findSellersIfRepeatedWithSellerEmailIds =
+      await partnerRepository.findSellersByMultipleFieldsAddedByPartner(
+        sellerEmailIdsFromUploadedFile,
+        req.user?.id,
+      );
+
+    if (findSellersIfRepeatedWithSellerEmailIds.length) {
+      for (const seller of findSellersIfRepeatedWithSellerEmailIds) {
+        errorDatas.push({
+          sellerId: seller?.sellerEmailId,
+          errorMessage: `Seller email id already exists!`,
+        });
+      }
+    }
+
+    const findSellersIfRepeatedWithSellerPhoneNumbers =
+      await partnerRepository.findSellersByMultipleFieldsAddedByPartner(
+        phoneNumbersFromUploadedFile,
+        req.user?.id,
+      );
+
+    if (findSellersIfRepeatedWithSellerPhoneNumbers.length) {
+      for (const seller of findSellersIfRepeatedWithSellerPhoneNumbers) {
+        errorDatas.push({
+          sellerId: seller?.phoneNumber,
+          errorMessage: `Seller phone number already exists!`,
+        });
+      }
+    }
+
+    const findSellersIfRepeatedWithSellerGSTNumbers =
+      await partnerRepository.findSellersByMultipleFieldsAddedByPartner(
+        gstNumbersFromUploadedFile,
+        req.user?.id,
+      );
+
+    if (findSellersIfRepeatedWithSellerGSTNumbers.length) {
+      for (const seller of findSellersIfRepeatedWithSellerGSTNumbers) {
+        errorDatas.push({
+          sellerId: seller?.gstNumber,
+          errorMessage: `Seller GST number already exists!`,
+        });
+      }
+    }
+
+    // const fieldsToFindDuplicateSellers = eventsData
+    //   .map((seller: any) => {
+    //     return [
+    //       seller?.sellerName,
+    //       seller?.sellerEmailId,
+    //       String(seller?.phoneNumber),
+    //       seller?.gstNumber,
+    //     ];
+    //   })
+    //   .flat();
+
+    // const findSellersWithDuplicatEntries =
+    //   await partnerRepository.findSellersByMultipleFieldsAddedByPartner(
+    //     fieldsToFindDuplicateSellers,
+    //     req.user?.id,
+    //   );
+
+    // ---------------------------
+
+    // eventsData = eventsData.map((event: any) => {
+    //   event.password = helper.encrypt(event.password);
+    //   if (event.launchingDate) {
+    //     // If Excel date is stored as a number (Excel serial date)
+    //     if (typeof event.launchingDate === "number") {
+    //       // Convert Excel serial date to JavaScript Date
+    //       // Excel dates are days since 1900-01-01 (except Excel thinks 1900 is a leap year)
+    //       event.launchingDate = new Date(
+    //         (event.launchingDate - 25569) * 86400 * 1000,
+    //       );
+    //     }
+    //     // If date is already in string format like '2023-05-15T14:30:00'
+    //     else if (typeof event.launchingDate === "string") {
+    //       event.launchingDate = new Date(event.launchingDate);
+    //     }
+    //   }
+    //   if (event.listingDate) {
+    //     // If Excel date is stored as a number (Excel serial date)
+    //     if (typeof event.listingDate === "number") {
+    //       // Convert Excel serial date to JavaScript Date
+    //       // Excel dates are days since 1900-01-01 (except Excel thinks 1900 is a leap year)
+    //       event.listingDate = new Date(
+    //         (event.listingDate - 25569) * 86400 * 1000,
+    //       );
+    //     }
+    //     // If date is already in string format like '2023-05-15T14:30:00'
+    //     else if (typeof event.listingDate === "string") {
+    //       event.listingDate = new Date(event.listingDate);
+    //     }
+    //   }
+    //   if (event.phoneNumber) {
+    //     event.phoneNumber = event.phoneNumber.toString();
+    //   }
+    //   if (event.productCategories) {
+    //     event.productCategories = event.productCategories
+    //       .split(",")
+    //       .map((item: any) => item.trim());
+    //   }
+    //   return {
+    //     ...event,
+    //     partnerId: req.user.id,
+    //   };
+    // });
+
+    const uniqueErrorDatas = Array.from(
+      new Map(
+        errorDatas.map((item: any) => [
+          `${item.sellerId}-${item.errorMessage}`,
+          item,
+        ]),
+      ).values(),
+    );
+
+    // const sellerIdsToExtract: any = [];
+
+    if (uniqueErrorDatas.length) {
+      // return "Invalid data found in the uploaded file!"
+
+      return {
+        success: false,
+        errorDatas: uniqueErrorDatas,
+        message: "Invalid data found in uploaded file!",
+      };
+
+      // errorDatas.map((errorData: any) => {
+      //   sellerIdsToExtract.push(errorData.sellerId);
+      // });
+    }
+
+    // if (sellerIdsToExtract.length) {
+    //   eventsData = eventsData.filter(
+    //     (event) => !sellerIdsToExtract.includes(event?.sellerId),
+    //   );
+    // }
 
     eventsData = eventsData.filter((event) => event.sellerId !== "DEMO12");
 
@@ -1182,8 +1471,11 @@ const partnerService = {
 
     if (!sellersData) return message.FAILED;
 
+    helper.deleteLocalFile(filePath);
+
     return {
-      errorDatas,
+      success: true,
+      message: "file uploaded successfully.",
       sellerAddedWithValidData: sellersData.map((seller: any) =>
         seller.get({ plain: true }),
       ).length,
@@ -1816,29 +2108,39 @@ const partnerService = {
       //   .filter(([_, count]) => count > 1)
       //   .map(([orderId, count]) => ({ orderId, count }));
 
-      const sanitizedSellers = eventsData.map((row: any) => ({
-        sellerId: row?.["Seller ID"],
-        sellerName: row?.["Seller Name"],
-        sellerEmailId: row?.["Account Email Id"]?.trim(),
-        launchingDate: row?.["Launch Date"],
-        ...(!isNaN(row?.["Current SKU Live"]) && {
-          currentSKUsLive: row?.["Current SKU Live"] ?? 0,
-        }),
-        ...(row?.["Payout-Type"].includes("NMV")
-          ? {
-              NMVPaymentAmount: row?.["Total Payout"],
-              NMVPaymentMonthYear: getNMVMonth(row?.["Launch Date"]),
-            }
-          : row?.["Payout-Type"].includes("Fixed")
-            ? {
-                fixedPaymentAmount: row?.["Total Payout"],
-                fixedPaymentMonthYear: getFirstDateOfMonth(
-                  row?.["Launch Date"],
-                ),
-              }
-            : null),
-        partnerId: req.user?.id,
-      }));
+      const NMVPaymentSellersData = [],
+        FixedPaymentSellersData = [];
+
+      const sanitizedSellers = eventsData.map((row: any) => {
+        if (row?.["Payout-Type"].includes("NMV")) {
+          NMVPaymentSellersData.push({
+            sellerId: row?.["Seller ID"],
+            sellerName: row?.["Seller Name"],
+            sellerEmailId: row?.["Account Email Id"]?.trim(),
+            launchingDate: row?.["Launch Date"],
+            ...(!isNaN(row?.["Current SKU Live"]) && {
+              currentSKUsLive: row?.["Current SKU Live"] ?? 0,
+            }),
+            NMVPaymentAmount: row?.["Total Payout"],
+            NMVPaymentMonthYear: getNMVMonth(row?.["Launch Date"]),
+            partnerId: req.user?.id,
+          });
+        }
+        if (row?.["Payout-Type"].includes("Fixed")) {
+          FixedPaymentSellersData.push({
+            sellerId: row?.["Seller ID"],
+            sellerName: row?.["Seller Name"],
+            sellerEmailId: row?.["Account Email Id"]?.trim(),
+            launchingDate: row?.["Launch Date"],
+            ...(!isNaN(row?.["Current SKU Live"]) && {
+              currentSKUsLive: row?.["Current SKU Live"] ?? 0,
+            }),
+            fixedPaymentAmount: row?.["Total Payout"],
+            fixedPaymentMonthYear: getFirstDateOfMonth(row?.["Launch Date"]),
+            partnerId: req.user?.id,
+          });
+        }
+      });
 
       // const uniqueMap = new Map<string, any>();
 
@@ -1848,8 +2150,12 @@ const partnerService = {
 
       // const finalData = Array.from(uniqueMap.values());
 
-      let sellersData =
-        await partnerRepository.createOrUpdateBulkSellersMonthlyFile(
+      let monthlyNMVPayoutsellersData =
+        await partnerRepository.createOrUpdateBulkSellersMonthlyNMVFile(
+          sanitizedSellers,
+        );
+      let monthlyFixedPayoutsellersData =
+        await partnerRepository.createOrUpdateBulkSellersMonthlyFixedFile(
           sanitizedSellers,
         );
       // for (const seller of sanitizedSellers) {
@@ -1863,7 +2169,7 @@ const partnerService = {
       //     return message.FAILED;
       //   }
       // }
-      if (!sellersData) {
+      if (!monthlyNMVPayoutsellersData || !monthlyFixedPayoutsellersData) {
         return message.FAILED;
       }
 

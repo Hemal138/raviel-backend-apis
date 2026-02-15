@@ -9,7 +9,12 @@ const partnerController = {
   partnerAddSellersViaForm: {
     validation: validator({
       body: Joi.object({
-        sellerId: Joi.string().required(),
+        sellerId: Joi.string()
+          .pattern(/^[A-Z0-9]{6}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Seller ID must be 6 digit valid ID",
+          }),
         sellerName: Joi.string().required(),
         launchingDate: Joi.string().required(),
         listingDate: Joi.string().required(),
@@ -64,6 +69,11 @@ const partnerController = {
         return ApiResponse.BAD_REQUEST({
           res,
           message: message.SELLER_ALREADY_EXIST,
+        });
+      if (typeof addedsellerByPartner === "string")
+        return ApiResponse.BAD_REQUEST({
+          res,
+          message: addedsellerByPartner,
         });
       return ApiResponse.CREATED({
         res,
@@ -454,18 +464,23 @@ const partnerController = {
       const sellersAddedByPartner: any =
         await partnerService.addSellersByPartnerUsingFile(req);
 
-      if (!sellersAddedByPartner)
+      // if (!sellersAddedByPartner)
+      //   return ApiResponse.BAD_REQUEST({
+      //     res,
+      //     message: message.FAILED,
+      //   });
+
+      if (!sellersAddedByPartner.success) {
         return ApiResponse.BAD_REQUEST({
           res,
-          message: message.FAILED,
+          message: sellersAddedByPartner?.message,
+          payload: sellersAddedByPartner?.errorDatas,
         });
+      }
 
       return ApiResponse.OK({
         res,
-        message: `${sellersAddedByPartner?.sellerAddedWithValidData} sellers added successfully and for others sellers with invalid data you need to change their details and add them manually or via file upload!`,
-        payload: {
-          errorDatas: sellersAddedByPartner?.errorDatas,
-        },
+        message: `${sellersAddedByPartner?.sellerAddedWithValidData} sellers added successfully.`,
       });
     },
   },
@@ -580,7 +595,7 @@ const partnerController = {
             "date.invalid": "Invalid date",
           })
           .optional(),
-        paymentType: Joi.string().valid("Fixed", "NMV", "all").required(),
+        paymentType: Joi.string().valid("Fixed", "NMV", "all").optional(),
         fileType: Joi.string().valid("PDF", "Excel").required(),
         reportType: Joi.string()
           .valid("payoutReport", "sellerGrowth")
@@ -588,7 +603,7 @@ const partnerController = {
       }),
     }),
     handler: async (req: any, res: Response) => {
-      const fetchPayoutData: any =
+      const fetchPayoutOrGrowthData: any =
         await partnerService.downloadSellerPayoutOrGrowthReport(req, res);
 
       // 🔥 FILE RESPONSE ALREADY SENT
@@ -596,23 +611,23 @@ const partnerController = {
         return;
       }
 
-      if (!fetchPayoutData)
+      if (!fetchPayoutOrGrowthData)
         return ApiResponse.BAD_REQUEST({
           res,
           message: message.FAILED,
         });
 
-      if (typeof fetchPayoutData === "string") {
+      if (typeof fetchPayoutOrGrowthData === "string") {
         return ApiResponse.BAD_REQUEST({
           res,
-          message: fetchPayoutData,
+          message: fetchPayoutOrGrowthData,
         });
       }
 
       return ApiResponse.OK({
         res,
         message: "Download seller payout or seller growth successfully",
-        payload: fetchPayoutData,
+        payload: fetchPayoutOrGrowthData,
       });
     },
   },
